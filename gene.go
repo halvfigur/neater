@@ -34,11 +34,15 @@ type (
 )
 
 var (
-	innovCount = uint64(1)
+	innovCount = uint64(0)
 )
 
 func nextInnov() geneID {
 	return geneID(atomic.AddUint64(&innovCount, 1))
+}
+
+func currInnov() geneID {
+	return geneID(atomic.LoadUint64(&innovCount))
 }
 
 func newGene(opts ...geneOpt) *gene {
