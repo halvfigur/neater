@@ -22,8 +22,8 @@ func TestEval(t *testing.T) {
 			nOutputs: 1,
 			activate: unit,
 
-			input:  []float64{0},
-			expect: []float64{unit(0)},
+			input:  []float64{1},
+			expect: []float64{defaultWeight * unit(1)},
 		},
 		{
 			name:     "single sigmoid",
@@ -31,8 +31,8 @@ func TestEval(t *testing.T) {
 			nOutputs: 1,
 			activate: sigmoid,
 
-			input:  []float64{0},
-			expect: []float64{sigmoid(0)},
+			input:  []float64{1},
+			expect: []float64{defaultWeight * sigmoid(1)},
 		},
 		{
 			name:     "double unit",
@@ -40,8 +40,8 @@ func TestEval(t *testing.T) {
 			nOutputs: 2,
 			activate: unit,
 
-			input:  []float64{0, 1},
-			expect: []float64{unit(0), unit(1)},
+			input:  []float64{1, 2},
+			expect: []float64{defaultWeight * unit(1), defaultWeight * unit(2)},
 		},
 		{
 			name:     "double sigmoid",
@@ -49,8 +49,26 @@ func TestEval(t *testing.T) {
 			nOutputs: 2,
 			activate: sigmoid,
 
-			input:  []float64{0, 1},
-			expect: []float64{sigmoid(0), sigmoid(1)},
+			input:  []float64{1, 2},
+			expect: []float64{defaultWeight * sigmoid(1), defaultWeight * sigmoid(2)},
+		},
+		{
+			name:     "signale split",
+			nInputs:  1,
+			nOutputs: 2,
+			activate: sigmoid,
+
+			input:  []float64{1},
+			expect: []float64{defaultWeight * sigmoid(1), defaultWeight * sigmoid(1)},
+		},
+		{
+			name:     "single join",
+			nInputs:  2,
+			nOutputs: 1,
+			activate: sigmoid,
+
+			input:  []float64{1, 2},
+			expect: []float64{defaultWeight*sigmoid(1) + defaultWeight*sigmoid(2)},
 		},
 	}
 
@@ -61,7 +79,7 @@ func TestEval(t *testing.T) {
 				withConnectStrategy(connectFlow))
 
 			output := o.Eval(test.input)
-			require.Equal(t, output, test.expect)
+			require.Equal(t, test.expect, output)
 		})
 	}
 }

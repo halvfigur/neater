@@ -1,18 +1,34 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type (
 	connectStrategy int
 
 	organism struct {
-		inputs  []geneID
-		outputs []geneID
+		// input holds input node IDs
+		inputs []nodeID
+		// output holds output node IDs
+		outputs []nodeID
+		// order holds the gene evalulauation order
+		order []*gene
+		// nodes holds all the nodes values
+		nodes map[nodeID]float64
 
-		connectStrategy connectStrategy
-		genome          map[geneID]*gene
-		score           float64
+		// genome holds the organism genome
+		genome map[geneID]*gene
 
+		// strategy determines how to connect the nodes during the initial
+		// setup
+		strategy connectStrategy
+
+		// score is the organisms score
+		score float64
+
+		// activate is the activation function to use when evealuating node
+		// output values
 		activate activationFunction
 	}
 
@@ -27,39 +43,45 @@ const (
 	defaultConnectStrategy = connectNone
 )
 
-func newOrganism(nInputs, nOutputs int, opts ...organismOpt) *organism {
-	if nInputs <= 0 {
+var (
+	nodeCount = uint64(0)
+)
+
+func newOrganism(inputs, outputs int, opts ...organismOpt) *organism {
+	if inputs <= 0 {
 		panic("Number of inputs must be greater than 0")
 	}
 
-	if nOutputs <= 0 {
+	if outputs <= 0 {
 		panic("Number of outputs must be greater than 0")
 	}
 
+	nNodes := inputs * outputs
 	o := &organism{
-		connectStrategy: defaultConnectStrategy,
+		order:    make([]*gene, 0, nNodes),
+		nodes:    make(map[nodeID]float64, nNodes),
+		genome:   make(map[geneID]*gene, nNodes),
+		strategy: defaultConnectStrategy,
 	}
-
-	o.genome = make(map[geneID]*gene, len(o.inputs)*len(o.outputs))
 
 	for _, opt := range opts {
 		opt(o)
 	}
 
-	o.inputs = make([]geneID, nInputs)
-	for i := 0; i < nInputs; i++ {
-		g := newGene(withWeight(float64(1.0)), withActivationFunction(unit))
-		o.inputs[i] = g.innov
-		o.genome[g.innov] = g
+	o.inputs = make([]nodeID, inputs)
+	for i := 0; i < inputs; i++ {
+		id := nextNodeID()
+
+		o.inputs[i] = id
+		o.nodes[id] = 0
 	}
 
-	o.outputs = make([]geneID, nOutputs)
-	for i := 0; i < nOutputs; i++ {
-		g := newGene(withWeight(float64(1.0)),
-			withActivationFunction(o.activate),
-			withOutput(terminal))
-		o.outputs[i] = g.innov
-		o.genome[g.innov] = g
+	o.outputs = make([]nodeID, outputs)
+	for i := 0; i < outputs; i++ {
+		id := nextNodeID()
+
+		o.outputs[i] = id
+		o.nodes[id] = 0
 	}
 
 	o.connectTerminals()
@@ -68,7 +90,7 @@ func newOrganism(nInputs, nOutputs int, opts ...organismOpt) *organism {
 }
 
 func (o *organism) connectTerminals() {
-	switch o.connectStrategy {
+	switch o.strategy {
 	case connectNone:
 		panic("Not implemented")
 	case connectFlow:
@@ -82,10 +104,13 @@ func (o *organism) connectFlow() {
 	m := max(len(o.inputs), len(o.outputs))
 
 	for i := 0; i < m; i++ {
-		inputID := o.inputs[i%len(o.inputs)]
-		outputID := o.outputs[i%len(o.outputs)]
+		input := o.inputs[i%len(o.inputs)]
+		output := o.outputs[i%len(o.outputs)]
 
-		o.gene(inputID).output = outputID
+		g := newGene(input, output,
+			withActivationFunction(o.activate))
+		o.genome[g.innov] = g
+		o.order = append(o.order, g)
 	}
 }
 
@@ -97,7 +122,7 @@ func withGlobalActivationFunction(f activationFunction) organismOpt {
 
 func withConnectStrategy(s connectStrategy) organismOpt {
 	return func(o *organism) {
-		o.connectStrategy = s
+		o.strategy = s
 	}
 }
 
@@ -110,61 +135,35 @@ func (o *organism) gene(id geneID) *gene {
 	return g
 }
 
-func (o *organism) inputGenes() []*gene {
-	genes := make([]*gene, 0, len(o.inputs))
-
-	for _, id := range o.inputs {
-		genes = append(genes, o.gene(id))
-	}
-
-	return genes
-}
-
-func (o *organism) outputGenes() []*gene {
-	genes := make([]*gene, 0, len(o.inputs))
-
-	for _, id := range o.outputs {
-		genes = append(genes, o.gene(id))
-	}
-
-	return genes
-}
-
-func (o *organism) clearGenome() {
-	for _, g := range o.genome {
-		g.clear()
+func (o *organism) clearNodes() {
+	for id := range o.nodes {
+		o.nodes[id] = 0
 	}
 }
 
-func (o *organism) Eval(inputs []float64) []float64 {
-	if len(inputs) != len(o.inputs) {
+func (o *organism) Eval(input []float64) []float64 {
+	if len(input) != len(o.inputs) {
 		panic("Length of input vector must equal number of input nodes")
 	}
 
-	o.clearGenome()
+	o.clearNodes()
 
-	q := newSliceQueue(1024)
-
-	// Going into this loop the genome must first be cleared
-	for i, g := range o.inputGenes() {
-		g.add(inputs[i])
-		q.put(g)
+	for i, id := range o.inputs {
+		o.nodes[id] = input[i]
 	}
 
-	for q.len() > 0 {
-		g := q.get()
-		h := o.gene(g.output)
-		h.add(g.val())
+	for _, g := range o.order {
+		input := o.nodes[g.input]
 
-		if !h.terminal() {
-			q.put(h)
-		}
+		v := g.activate(input) * g.weight
+
+		o.nodes[g.output] += v
 	}
 
-	outputs := make([]float64, len(o.outputs))
-	for i, g := range o.outputGenes() {
-		outputs[i] = g.val()
+	output := make([]float64, len(o.outputs))
+	for i, id := range o.outputs {
+		output[i] = o.nodes[id]
 	}
 
-	return outputs
+	return output
 }

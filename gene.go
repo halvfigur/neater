@@ -3,9 +3,8 @@ package main
 import "sync/atomic"
 
 const (
-	terminal = geneID(0)
+	terminal = nodeID(0)
 
-	defaultOutput   = terminal
 	defaultWeight   = float64(0.5)
 	defaultDisabled = false
 )
@@ -24,10 +23,10 @@ type (
 	gene struct {
 		innov geneID
 
-		output   geneID
+		input    nodeID
+		output   nodeID
 		weight   float64
 		disabled bool
-		sum      float64
 
 		activate activationFunction
 	}
@@ -45,10 +44,12 @@ func currInnov() geneID {
 	return geneID(atomic.LoadUint64(&innovCount))
 }
 
-func newGene(opts ...geneOpt) *gene {
+func newGene(input, output nodeID,
+	opts ...geneOpt) *gene {
 	g := &gene{
 		innov:    nextInnov(),
-		output:   defaultOutput,
+		input:    input,
+		output:   output,
 		weight:   defaultWeight,
 		disabled: defaultDisabled,
 		activate: defaultActivationFunction,
@@ -59,12 +60,6 @@ func newGene(opts ...geneOpt) *gene {
 	}
 
 	return g
-}
-
-func withOutput(output geneID) geneOpt {
-	return func(g *gene) {
-		g.output = output
-	}
 }
 
 func withWeight(weight float64) geneOpt {
@@ -83,20 +78,4 @@ func withActivationFunction(f activationFunction) geneOpt {
 	return func(g *gene) {
 		g.activate = f
 	}
-}
-
-func (g *gene) add(v float64) {
-	g.sum += v
-}
-
-func (g *gene) val() float64 {
-	return g.activate(g.sum)
-}
-
-func (g *gene) clear() {
-	g.sum = 0
-}
-
-func (g *gene) terminal() bool {
-	return g.output == terminal
 }
