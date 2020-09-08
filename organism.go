@@ -1,9 +1,5 @@
 package main
 
-import (
-	"fmt"
-)
-
 type (
 	connectStrategy int
 
@@ -12,13 +8,15 @@ type (
 		inputs []nodeID
 		// output holds output node IDs
 		outputs []nodeID
-		// order holds the gene evalulauation order
-		order []*gene
+		// oinnov holds the gene innovation order
+		oinnov []*gene
+		// oeval holds the gene evalulauation order
+		oeval []*gene
 		// nodes holds all the nodes values
 		nodes map[nodeID]float64
 
-		// genome holds the organism genome
-		genome map[geneID]*gene
+		// recurrence determines if recurrent nodes are permitted
+		recurrence bool
 
 		// strategy determines how to connect the nodes during the initial
 		// setup
@@ -47,7 +45,7 @@ var (
 	nodeCount = uint64(0)
 )
 
-func newOrganism(inputs, outputs int, opts ...organismOpt) *organism {
+func newCleanOrganism(inputs, outputs int) *organism {
 	if inputs <= 0 {
 		panic("Number of inputs must be greater than 0")
 	}
@@ -57,12 +55,16 @@ func newOrganism(inputs, outputs int, opts ...organismOpt) *organism {
 	}
 
 	nNodes := inputs * outputs
-	o := &organism{
-		order:    make([]*gene, 0, nNodes),
+	return &organism{
+		oeval:    make([]*gene, 0, nNodes),
+		oinnov:   make([]*gene, 0, nNodes),
 		nodes:    make(map[nodeID]float64, nNodes),
-		genome:   make(map[geneID]*gene, nNodes),
 		strategy: defaultConnectStrategy,
 	}
+}
+
+func newOrganism(inputs, outputs int, opts ...organismOpt) *organism {
+	o := newCleanOrganism(inputs, outputs)
 
 	for _, opt := range opts {
 		opt(o)
@@ -89,6 +91,33 @@ func newOrganism(inputs, outputs int, opts ...organismOpt) *organism {
 	return o
 }
 
+func (o *organism) copy() *organism {
+	nNodes := len(o.nodes)
+
+	x := &organism{
+		oeval:    make([]*gene, 0, nNodes),
+		oinnov:   make([]*gene, 0, nNodes),
+		nodes:    make(map[nodeID]float64, nNodes),
+		strategy: o.strategy,
+	}
+
+	for i, g := range o.oeval {
+		c := *g
+		x.oeval[i] = &c
+	}
+
+	for i, g := range o.oinnov {
+		c := *g
+		x.oinnov[i] = &c
+	}
+
+	for id := range o.nodes {
+		x.nodes[id] = 0
+	}
+
+	return x
+}
+
 func (o *organism) connectTerminals() {
 	switch o.strategy {
 	case connectNone:
@@ -100,6 +129,61 @@ func (o *organism) connectTerminals() {
 	}
 }
 
+func (o *organism) add(g *gene) {
+	o.nodes[g.input] = 0
+	o.nodes[g.output] = 0
+
+	// Add gene at end of innovation order
+	o.oinnov = append(o.oinnov, g)
+
+	// If ´g´ is the first gene then just insert it and where're done.
+	if len(o.oinnov) == 1 {
+		o.oeval = append(o.oeval, g)
+		return
+	}
+
+	var i int
+	var x *gene
+
+	// Store the position of the first gene in the evaluation order for which
+	// the input node is the output node of ´g´ and use it later to test if ´g´
+	// introduces recurrence
+	var firstDep int
+	var firstDepFound bool
+	for i, x = range o.oeval {
+		if !firstDepFound && x.input == g.output {
+			firstDep = i
+			firstDepFound = true
+			break
+		}
+	}
+
+	var lastDep int
+
+	// Store the position of the last gene in the evaluation order for which
+	// the output node is the input node of ´g´.
+	for i, x = range o.oeval[i+1:] {
+		if x.output == g.input {
+			lastDep = i
+		}
+	}
+
+	// If a node that depends on the output of ´g´ exists prior to 'g' in the
+	// evaluation order then we have recurrence.
+	if firstDepFound && firstDep < lastDep && !o.recurrence {
+		panic("recurrence not configured")
+	}
+
+	// Calculate the insert position
+	var p int
+	if lastDep != 0 {
+		p = lastDep - 1
+	}
+
+	// Insert 'g'
+	o.oeval = append(o.oeval[:p], append([]*gene{g}, o.oeval[p:]...)...)
+}
+
 func (o *organism) connectFlow() {
 	m := max(len(o.inputs), len(o.outputs))
 
@@ -109,8 +193,7 @@ func (o *organism) connectFlow() {
 
 		g := newGene(input, output,
 			withActivationFunction(o.activate))
-		o.genome[g.innov] = g
-		o.order = append(o.order, g)
+		o.add(g)
 	}
 }
 
@@ -126,16 +209,13 @@ func withConnectStrategy(s connectStrategy) organismOpt {
 	}
 }
 
-func (o *organism) gene(id geneID) *gene {
-	g, ok := o.genome[id]
-	if !ok {
-		panic(fmt.Sprintf("Gene not found %d", id))
+func withRecurrence(r bool) organismOpt {
+	return func(o *organism) {
+		o.recurrence = r
 	}
-
-	return g
 }
 
-func (o *organism) clearNodes() {
+func (o *organism) clear() {
 	for id := range o.nodes {
 		o.nodes[id] = 0
 	}
@@ -146,13 +226,18 @@ func (o *organism) Eval(input []float64) []float64 {
 		panic("Length of input vector must equal number of input nodes")
 	}
 
-	o.clearNodes()
+	o.clear()
 
 	for i, id := range o.inputs {
 		o.nodes[id] = input[i]
 	}
 
-	for _, g := range o.order {
+	for _, g := range o.oeval {
+		if g.disabled {
+			// Skip disabled genes
+			continue
+		}
+
 		input := o.nodes[g.input]
 
 		v := g.activate(input) * g.weight

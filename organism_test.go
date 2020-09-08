@@ -53,7 +53,7 @@ func TestEval(t *testing.T) {
 			expect: []float64{defaultWeight * sigmoid(1), defaultWeight * sigmoid(2)},
 		},
 		{
-			name:     "signale split",
+			name:     "single split",
 			nInputs:  1,
 			nOutputs: 2,
 			activate: sigmoid,
