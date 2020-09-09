@@ -20,7 +20,8 @@ type (
 )
 
 var (
-	nodeIDCount = uint64(0)
+	nodeIDCount     = uint64(0)
+	nodeIDGenerator = nextNodeID
 )
 
 func nextNodeID() nodeID {

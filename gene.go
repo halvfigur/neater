@@ -9,10 +9,6 @@ const (
 	defaultDisabled = false
 )
 
-var (
-	defaultActivationFunction = sigmoid
-)
-
 type (
 	geneID int64
 
@@ -33,21 +29,19 @@ type (
 )
 
 var (
-	innovCount = uint64(0)
+	innovCount                = uint64(0)
+	defaultActivationFunction = sigmoid
+	innovIDGenerator          = nextInnov
 )
 
 func nextInnov() geneID {
 	return geneID(atomic.AddUint64(&innovCount, 1))
 }
 
-func currInnov() geneID {
-	return geneID(atomic.LoadUint64(&innovCount))
-}
-
 func newGene(input, output nodeID,
 	opts ...geneOpt) *gene {
 	g := &gene{
-		innov:    nextInnov(),
+		innov:    innovIDGenerator(),
 		input:    input,
 		output:   output,
 		weight:   defaultWeight,
@@ -60,6 +54,15 @@ func newGene(input, output nodeID,
 	}
 
 	return g
+}
+
+func (g *gene) equalTo(x *gene) bool {
+	return g.innov == x.innov &&
+		g.input == x.input &&
+		g.output == x.output &&
+		g.weight == x.weight &&
+		g.disabled == x.disabled
+
 }
 
 func withWeight(weight float64) geneOpt {

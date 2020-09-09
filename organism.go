@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type (
 	connectStrategy int
 
@@ -41,9 +43,7 @@ const (
 	defaultConnectStrategy = connectNone
 )
 
-var (
-	nodeCount = uint64(0)
-)
+var ()
 
 func newCleanOrganism(inputs, outputs int) *organism {
 	if inputs <= 0 {
@@ -56,6 +56,8 @@ func newCleanOrganism(inputs, outputs int) *organism {
 
 	nNodes := inputs * outputs
 	return &organism{
+		inputs:   make([]nodeID, inputs),
+		outputs:  make([]nodeID, outputs),
 		oeval:    make([]*gene, 0, nNodes),
 		oinnov:   make([]*gene, 0, nNodes),
 		nodes:    make(map[nodeID]float64, nNodes),
@@ -72,7 +74,7 @@ func newOrganism(inputs, outputs int, opts ...organismOpt) *organism {
 
 	o.inputs = make([]nodeID, inputs)
 	for i := 0; i < inputs; i++ {
-		id := nextNodeID()
+		id := nodeIDGenerator()
 
 		o.inputs[i] = id
 		o.nodes[id] = 0
@@ -80,7 +82,7 @@ func newOrganism(inputs, outputs int, opts ...organismOpt) *organism {
 
 	o.outputs = make([]nodeID, outputs)
 	for i := 0; i < outputs; i++ {
-		id := nextNodeID()
+		id := nodeIDGenerator()
 
 		o.outputs[i] = id
 		o.nodes[id] = 0
@@ -92,36 +94,25 @@ func newOrganism(inputs, outputs int, opts ...organismOpt) *organism {
 }
 
 func (o *organism) copy() *organism {
-	nNodes := len(o.nodes)
+	x := *o
 
-	x := &organism{
-		oeval:    make([]*gene, 0, nNodes),
-		oinnov:   make([]*gene, 0, nNodes),
-		nodes:    make(map[nodeID]float64, nNodes),
-		strategy: o.strategy,
+	(&x).oeval = make([]*gene, len(o.oeval))
+	copy(x.oeval, o.oeval)
+
+	(&x).oinnov = make([]*gene, len(o.oinnov))
+	copy(x.oinnov, o.oinnov)
+
+	(&x).nodes = make(map[nodeID]float64, len(o.nodes))
+	for k, v := range o.nodes {
+		x.nodes[k] = v
 	}
 
-	for i, g := range o.oeval {
-		c := *g
-		x.oeval[i] = &c
-	}
-
-	for i, g := range o.oinnov {
-		c := *g
-		x.oinnov[i] = &c
-	}
-
-	for id := range o.nodes {
-		x.nodes[id] = 0
-	}
-
-	return x
+	return &x
 }
 
 func (o *organism) connectTerminals() {
 	switch o.strategy {
 	case connectNone:
-		panic("Not implemented")
 	case connectFlow:
 		o.connectFlow()
 	case connectRandom:
@@ -129,7 +120,28 @@ func (o *organism) connectTerminals() {
 	}
 }
 
+func (o *organism) connectFlow() {
+	m := max(len(o.inputs), len(o.outputs))
+
+	for i := 0; i < m; i++ {
+		input := o.inputs[i%len(o.inputs)]
+		output := o.outputs[i%len(o.outputs)]
+
+		g := newGene(input, output,
+			withActivationFunction(o.activate))
+		o.add(g)
+	}
+}
+
 func (o *organism) add(g *gene) {
+	if _, ok := o.nodes[g.input]; !ok {
+		panic(fmt.Sprintf("node not found %d", g.input))
+	}
+
+	if _, ok := o.nodes[g.output]; !ok {
+		panic(fmt.Sprintf("node not found %d", g.output))
+	}
+
 	o.nodes[g.input] = 0
 	o.nodes[g.output] = 0
 
@@ -182,19 +194,6 @@ func (o *organism) add(g *gene) {
 
 	// Insert 'g'
 	o.oeval = append(o.oeval[:p], append([]*gene{g}, o.oeval[p:]...)...)
-}
-
-func (o *organism) connectFlow() {
-	m := max(len(o.inputs), len(o.outputs))
-
-	for i := 0; i < m; i++ {
-		input := o.inputs[i%len(o.inputs)]
-		output := o.outputs[i%len(o.outputs)]
-
-		g := newGene(input, output,
-			withActivationFunction(o.activate))
-		o.add(g)
-	}
 }
 
 func withGlobalActivationFunction(f activationFunction) organismOpt {

@@ -7,17 +7,9 @@ func mate(a, b *organism) *organism {
 		a, b = b, a
 	}
 
-	o := newOrganism(len(a.inputs), len(a.outputs))
-
-	// Copy input nodes
-	for _, id := range a.inputs {
-		o.inputs = append(o.inputs, id)
-	}
-
-	// Copy output nodes
-	for _, id := range a.outputs {
-		o.outputs = append(o.outputs, id)
-	}
+	o := newCleanOrganism(len(a.inputs), len(a.outputs))
+	copy(o.inputs, a.inputs)
+	copy(o.outputs, a.outputs)
 
 	i, j := 0, 0
 
@@ -40,6 +32,10 @@ func mate(a, b *organism) *organism {
 			j = min(j+1, len(b.oinnov))
 		}
 
+		// Create the nodes in the target organism if the don't already exist.
+		// TODO: figure out if we need a function for creating nodes.
+		o.nodes[g.input] = 0
+		o.nodes[g.output] = 0
 		o.add(&g)
 	}
 
