@@ -141,7 +141,7 @@ func (o *organism) connectTerminals() {
 func (o *organism) connectFull() {
 	for _, in := range o.inputs {
 		for _, out := range o.outputs {
-			g := newGene(in, out,
+			g := newGene(nodePair{in, out},
 				withActivationFunction(o.activate))
 			o.add(g)
 		}
@@ -155,7 +155,7 @@ func (o *organism) connectFlow() {
 		input := o.inputs[i%len(o.inputs)]
 		output := o.outputs[i%len(o.outputs)]
 
-		g := newGene(input, output,
+		g := newGene(nodePair{input, output},
 			withActivationFunction(o.activate))
 		o.add(g)
 	}
@@ -170,22 +170,22 @@ func (o *organism) connected(input, output nodeID) bool {
 }
 
 func (o *organism) add(g *gene) {
-	if _, ok := o.nodes[g.input]; !ok {
-		panic(fmt.Sprintf("node not found %d", g.input))
+	if _, ok := o.nodes[g.p.input]; !ok {
+		panic(fmt.Sprintf("node not found %d", g.p.input))
 	}
 
-	if _, ok := o.nodes[g.output]; !ok {
-		panic(fmt.Sprintf("node not found %d", g.output))
+	if _, ok := o.nodes[g.p.output]; !ok {
+		panic(fmt.Sprintf("node not found %d", g.p.output))
 	}
 
-	o.nodes[g.input] = 0
-	o.nodes[g.output] = 0
+	o.nodes[g.p.input] = 0
+	o.nodes[g.p.output] = 0
 
 	// Make note that the nodes are connected
-	if o.connections[g.input] == nil {
-		o.connections[g.input] = make(map[nodeID]bool)
+	if o.connections[g.p.input] == nil {
+		o.connections[g.p.input] = make(map[nodeID]bool)
 	}
-	o.connections[g.input][g.output] = true
+	o.connections[g.p.input][g.p.output] = true
 
 	// Add gene at end of innovation order
 	o.oinnov = append(o.oinnov, g)
@@ -208,7 +208,7 @@ func (o *organism) add(g *gene) {
 	var firstDep int
 	var firstDepFound bool
 	for i, x = range o.oeval {
-		if !firstDepFound && x.input == g.output {
+		if !firstDepFound && x.p.input == g.p.output {
 			firstDep = i
 			firstDepFound = true
 			break
@@ -220,7 +220,7 @@ func (o *organism) add(g *gene) {
 	// Store the position of the last gene in the evaluation order for which
 	// the output node is the input node of ´g´.
 	for i, x = range o.oeval[i+1:] {
-		if x.output == g.input {
+		if x.p.output == g.p.input {
 			lastDep = i
 		}
 	}
@@ -296,11 +296,11 @@ func (o *organism) Eval(input []float64) []float64 {
 			continue
 		}
 
-		input := o.nodes[g.input]
+		input := o.nodes[g.p.input]
 
 		v := g.activate(input) * g.weight
 
-		o.nodes[g.output] += v
+		o.nodes[g.p.output] += v
 	}
 
 	output := make([]float64, len(o.outputs))

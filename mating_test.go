@@ -57,10 +57,10 @@ func TestMating(t *testing.T) {
 			alphaScore: 1,
 			betaScore:  0,
 			commonGenes: []*gene{
-				newGene(1, 2),
-				newGene(1, 3),
-				newGene(2, 4),
-				newGene(3, 4),
+				newGene(nodePair{1, 2}),
+				newGene(nodePair{1, 3}),
+				newGene(nodePair{2, 4}),
+				newGene(nodePair{3, 4}),
 			},
 		},
 	}

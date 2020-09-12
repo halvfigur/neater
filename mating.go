@@ -34,8 +34,8 @@ func mate(a, b *organism) *organism {
 
 		// Create the nodes in the target organism if the don't already exist.
 		// TODO: figure out if we need a function for creating nodes.
-		o.nodes[g.input] = 0
-		o.nodes[g.output] = 0
+		o.nodes[g.p.input] = 0
+		o.nodes[g.p.output] = 0
 		o.add(&g)
 	}
 

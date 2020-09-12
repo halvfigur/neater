@@ -16,11 +16,15 @@ type (
 
 	activationFunction func(float64) float64
 
+	nodePair struct {
+		input  nodeID
+		output nodeID
+	}
+
 	gene struct {
 		innov geneID
 
-		input    nodeID
-		output   nodeID
+		p        nodePair
 		weight   float64
 		disabled bool
 
@@ -38,12 +42,11 @@ func nextInnov() geneID {
 	return geneID(atomic.AddUint64(&innovCount, 1))
 }
 
-func newGene(input, output nodeID,
+func newGene(p nodePair,
 	opts ...geneOpt) *gene {
 	g := &gene{
 		innov:    innovIDGenerator(),
-		input:    input,
-		output:   output,
+		p:        p,
 		weight:   defaultWeight,
 		disabled: defaultDisabled,
 		activate: defaultActivationFunction,
@@ -63,8 +66,8 @@ func (g *gene) copy() *gene {
 
 func (g *gene) equalTo(x *gene) bool {
 	return g.innov == x.innov &&
-		g.input == x.input &&
-		g.output == x.output &&
+		g.p.input == x.p.input &&
+		g.p.output == x.p.output &&
 		g.weight == x.weight &&
 		g.disabled == x.disabled
 
