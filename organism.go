@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 )
 
 type (
@@ -261,7 +260,7 @@ func withRecurrence(r bool) organismOpt {
 }
 
 func (o *organism) randomNode() nodeID {
-	x := rand.Intn(len(o.nodes))
+	x := randIntn(len(o.nodes))
 	for id := range o.nodes {
 		if x == 0 {
 			return id

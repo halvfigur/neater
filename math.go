@@ -1,6 +1,14 @@
 package main
 
-import "math"
+import (
+	"math"
+	"math/rand"
+)
+
+var (
+	defaultRandIntn = rand.Intn
+	randIntn        = defaultRandIntn
+)
 
 func min(a, b int) int {
 	if a < b {

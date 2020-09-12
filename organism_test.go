@@ -94,3 +94,23 @@ func TestEval(t *testing.T) {
 		})
 	}
 }
+
+func TestAdd(t *testing.T) {
+	tests := []struct {
+		name     string
+		conf     *Configuration
+		activate activationFunction
+
+		input  []float64
+		expect []float64
+	}{
+		{
+			name: "testing",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+		})
+	}
+}
