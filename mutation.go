@@ -7,11 +7,6 @@ type (
 		conf       *Configuration
 		population []*organism
 	}
-
-	nodePair struct {
-		input  nodeID
-		output nodeID
-	}
 )
 
 func newSpecies(conf *Configuration, o *organism) *species {
@@ -39,7 +34,7 @@ func (s *species) mutate() {
 			// This innovation has already been made
 			o.add(x.copy())
 		} else {
-			x := newGene(p.input, p.output)
+			x := newGene(p)
 			innovCache[p] = x
 			o.add(x)
 		}
@@ -63,8 +58,8 @@ func (s *species) mutate() {
 				id := nodeIDGenerator()
 				o.nodes[id] = 0
 
-				connectPair(o, nodePair{g.input, id})
-				connectPair(o, nodePair{id, g.output})
+				connectPair(o, nodePair{g.p.input, id})
+				connectPair(o, nodePair{id, g.p.output})
 			}
 		}
 	}
@@ -95,12 +90,12 @@ func (s *species) getRandUnconnectedNodePair(o *organism) nodePair {
 			lastIdx := -1
 			for i, g := range o.oeval {
 				if firstIdx == -1 {
-					if g.input == p.output {
+					if g.p.input == p.output {
 						firstIdx = i
 					}
 				}
 
-				if g.output == p.input {
+				if g.p.output == p.input {
 					lastIdx = i
 				}
 			}

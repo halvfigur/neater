@@ -9,8 +9,7 @@ import (
 func TestNewGene(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    nodeID
-		output   nodeID
+		p        nodePair
 		weight   float64
 		disabled bool
 		sum      float64
@@ -18,14 +17,14 @@ func TestNewGene(t *testing.T) {
 	}{
 		{
 			name:     "input",
-			input:    1,
+			p:        nodePair{1, 0},
 			weight:   defaultWeight,
 			disabled: defaultDisabled,
 			activate: defaultActivationFunction,
 		},
 		{
 			name:     "output",
-			output:   1,
+			p:        nodePair{0, 1},
 			weight:   defaultWeight,
 			disabled: defaultDisabled,
 			activate: defaultActivationFunction,
@@ -52,12 +51,14 @@ func TestNewGene(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			g := newGene(test.input, test.output,
+			g := newGene(test.p,
 				withWeight(test.weight),
 				withDisabled(test.disabled),
 				withActivationFunction(test.activate))
 
-			require.Equal(t, g.output, test.output)
+			require.Equal(t, g.p, test.p)
+			require.Equal(t, g.weight, test.weight)
+			require.Equal(t, g.disabled, test.disabled)
 		})
 	}
 }
