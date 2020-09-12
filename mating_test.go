@@ -7,7 +7,10 @@ import (
 )
 
 func genCleanOrganism(inputs, outputs, nodes []nodeID, genes []*gene) *organism {
-	o := newOrganism(len(inputs), len(outputs))
+	o := newOrganism(&Configuration{
+		Inputs:  len(inputs),
+		Outputs: len(outputs),
+	})
 	o.inputs = inputs
 	o.outputs = outputs
 

@@ -7,7 +7,7 @@ func mate(a, b *organism) *organism {
 		a, b = b, a
 	}
 
-	o := newCleanOrganism(len(a.inputs), len(a.outputs))
+	o := newCleanOrganism(a.conf)
 	copy(o.inputs, a.inputs)
 	copy(o.outputs, a.outputs)
 

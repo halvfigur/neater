@@ -9,62 +9,73 @@ import (
 func TestEval(t *testing.T) {
 	tests := []struct {
 		name     string
-		nInputs  int
-		nOutputs int
+		conf     *Configuration
 		activate activationFunction
 
 		input  []float64
 		expect []float64
 	}{
 		{
-			name:     "single unit",
-			nInputs:  1,
-			nOutputs: 1,
+			name: "single unit",
+			conf: &Configuration{
+				Inputs:  1,
+				Outputs: 1,
+			},
 			activate: unit,
 
 			input:  []float64{1},
 			expect: []float64{defaultWeight * unit(1)},
 		},
 		{
-			name:     "single sigmoid",
-			nInputs:  1,
-			nOutputs: 1,
+			name: "single sigmoid",
+			conf: &Configuration{
+				Inputs:  1,
+				Outputs: 1,
+			},
 			activate: sigmoid,
 
 			input:  []float64{1},
 			expect: []float64{defaultWeight * sigmoid(1)},
 		},
 		{
-			name:     "double unit",
-			nInputs:  2,
-			nOutputs: 2,
+			name: "double unit",
+			conf: &Configuration{
+				Inputs:  2,
+				Outputs: 2,
+			},
 			activate: unit,
 
 			input:  []float64{1, 2},
 			expect: []float64{defaultWeight * unit(1), defaultWeight * unit(2)},
 		},
 		{
-			name:     "double sigmoid",
-			nInputs:  2,
-			nOutputs: 2,
+			name: "double sigmoid",
+			conf: &Configuration{
+				Inputs:  2,
+				Outputs: 2,
+			},
 			activate: sigmoid,
 
 			input:  []float64{1, 2},
 			expect: []float64{defaultWeight * sigmoid(1), defaultWeight * sigmoid(2)},
 		},
 		{
-			name:     "single split",
-			nInputs:  1,
-			nOutputs: 2,
+			name: "single split",
+			conf: &Configuration{
+				Inputs:  1,
+				Outputs: 2,
+			},
 			activate: sigmoid,
 
 			input:  []float64{1},
 			expect: []float64{defaultWeight * sigmoid(1), defaultWeight * sigmoid(1)},
 		},
 		{
-			name:     "single join",
-			nInputs:  2,
-			nOutputs: 1,
+			name: "single join",
+			conf: &Configuration{
+				Inputs:  2,
+				Outputs: 1,
+			},
 			activate: sigmoid,
 
 			input:  []float64{1, 2},
@@ -74,7 +85,7 @@ func TestEval(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			o := newOrganism(test.nInputs, test.nOutputs,
+			o := newOrganism(test.conf,
 				withGlobalActivationFunction(test.activate),
 				withConnectStrategy(connectFlow))
 

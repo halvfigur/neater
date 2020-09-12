@@ -1,11 +1,17 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"math/rand"
+)
 
 type (
 	connectStrategy int
 
 	organism struct {
+		// conf is the global configuration
+		conf *Configuration
+
 		// input holds input node IDs
 		inputs []nodeID
 		// output holds output node IDs
@@ -16,6 +22,8 @@ type (
 		oeval []*gene
 		// nodes holds all the nodes values
 		nodes map[nodeID]float64
+		// connections holds all the input to output connections
+		connections map[nodeID]map[nodeID]bool
 
 		// recurrence determines if recurrent nodes are permitted
 		recurrence bool
@@ -37,51 +45,50 @@ type (
 
 const (
 	connectNone = connectStrategy(iota)
+	connectFull
 	connectFlow
 	connectRandom
 
-	defaultConnectStrategy = connectNone
+	defaultConnectStrategy = connectFull
 )
 
-var ()
-
-func newCleanOrganism(inputs, outputs int) *organism {
-	if inputs <= 0 {
+func newCleanOrganism(conf *Configuration) *organism {
+	if conf.Inputs <= 0 {
 		panic("Number of inputs must be greater than 0")
 	}
 
-	if outputs <= 0 {
+	if conf.Outputs <= 0 {
 		panic("Number of outputs must be greater than 0")
 	}
 
-	nNodes := inputs * outputs
+	nNodes := conf.Inputs * conf.Outputs
 	return &organism{
-		inputs:   make([]nodeID, inputs),
-		outputs:  make([]nodeID, outputs),
-		oeval:    make([]*gene, 0, nNodes),
-		oinnov:   make([]*gene, 0, nNodes),
-		nodes:    make(map[nodeID]float64, nNodes),
-		strategy: defaultConnectStrategy,
+		conf:        conf,
+		inputs:      make([]nodeID, conf.Inputs),
+		outputs:     make([]nodeID, conf.Outputs),
+		oeval:       make([]*gene, 0, nNodes),
+		oinnov:      make([]*gene, 0, nNodes),
+		nodes:       make(map[nodeID]float64, nNodes),
+		connections: make(map[nodeID]map[nodeID]bool),
+		strategy:    defaultConnectStrategy,
 	}
 }
 
-func newOrganism(inputs, outputs int, opts ...organismOpt) *organism {
-	o := newCleanOrganism(inputs, outputs)
+func newOrganism(conf *Configuration, opts ...organismOpt) *organism {
+	o := newCleanOrganism(conf)
 
 	for _, opt := range opts {
 		opt(o)
 	}
 
-	o.inputs = make([]nodeID, inputs)
-	for i := 0; i < inputs; i++ {
+	for i := range o.inputs {
 		id := nodeIDGenerator()
 
 		o.inputs[i] = id
 		o.nodes[id] = 0
 	}
 
-	o.outputs = make([]nodeID, outputs)
-	for i := 0; i < outputs; i++ {
+	for i := range o.outputs {
 		id := nodeIDGenerator()
 
 		o.outputs[i] = id
@@ -107,16 +114,38 @@ func (o *organism) copy() *organism {
 		x.nodes[k] = v
 	}
 
+	(&x).connections = make(map[nodeID]map[nodeID]bool)
+	for i, m := range o.connections {
+		outputSet := make(map[nodeID]bool)
+		for o := range m {
+			outputSet[o] = true
+		}
+		(&x).connections[i] = outputSet
+	}
+
 	return &x
 }
 
 func (o *organism) connectTerminals() {
 	switch o.strategy {
 	case connectNone:
+		o.connectFull()
+	case connectFull:
 	case connectFlow:
 		o.connectFlow()
 	case connectRandom:
 		panic("Not implemented")
+	}
+}
+
+// connectFull connects each input node to every output node.
+func (o *organism) connectFull() {
+	for _, in := range o.inputs {
+		for _, out := range o.outputs {
+			g := newGene(in, out,
+				withActivationFunction(o.activate))
+			o.add(g)
+		}
 	}
 }
 
@@ -133,6 +162,14 @@ func (o *organism) connectFlow() {
 	}
 }
 
+func (o *organism) connected(input, output nodeID) bool {
+	if o.connections[input] == nil {
+		return false
+	}
+
+	return o.connections[input][output]
+}
+
 func (o *organism) add(g *gene) {
 	if _, ok := o.nodes[g.input]; !ok {
 		panic(fmt.Sprintf("node not found %d", g.input))
@@ -145,8 +182,17 @@ func (o *organism) add(g *gene) {
 	o.nodes[g.input] = 0
 	o.nodes[g.output] = 0
 
+	// Make note that the nodes are connected
+	if o.connections[g.input] == nil {
+		o.connections[g.input] = make(map[nodeID]bool)
+	}
+	o.connections[g.input][g.output] = true
+
 	// Add gene at end of innovation order
 	o.oinnov = append(o.oinnov, g)
+
+	// The rest of the function deals with insering the node at an approriate
+	// place in the evalutaion order
 
 	// If ´g´ is the first gene then just insert it and where're done.
 	if len(o.oinnov) == 1 {
@@ -212,6 +258,20 @@ func withRecurrence(r bool) organismOpt {
 	return func(o *organism) {
 		o.recurrence = r
 	}
+}
+
+func (o *organism) randomNode() nodeID {
+	x := rand.Intn(len(o.nodes))
+	for id := range o.nodes {
+		if x == 0 {
+			return id
+		}
+
+		x--
+	}
+
+	// This will never happen but the compiler can't figure that out
+	return nodeID(0)
 }
 
 func (o *organism) clear() {

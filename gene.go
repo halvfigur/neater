@@ -56,6 +56,11 @@ func newGene(input, output nodeID,
 	return g
 }
 
+func (g *gene) copy() *gene {
+	c := *g
+	return &c
+}
+
 func (g *gene) equalTo(x *gene) bool {
 	return g.innov == x.innov &&
 		g.input == x.input &&
