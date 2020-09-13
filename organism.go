@@ -128,8 +128,8 @@ func (o *organism) copy() *organism {
 func (o *organism) connectTerminals() {
 	switch o.strategy {
 	case connectNone:
-		o.connectFull()
 	case connectFull:
+		o.connectFull()
 	case connectFlow:
 		o.connectFlow()
 	case connectRandom:
@@ -178,9 +178,6 @@ func (o *organism) add(g *gene) {
 		panic(fmt.Sprintf("node not found %d", g.p.output))
 	}
 
-	o.nodes[g.p.input] = 0
-	o.nodes[g.p.output] = 0
-
 	// Make note that the nodes are connected
 	if o.connections[g.p.input] == nil {
 		o.connections[g.p.input] = make(map[nodeID]bool)
@@ -199,46 +196,56 @@ func (o *organism) add(g *gene) {
 		return
 	}
 
-	var i int
-	var x *gene
+	// Find the last gene that ´g´ accepts input from
+	inputDep := -1
+	// Find the first gene that 'g' outputs to
+	outputDep := -1
 
-	// Store the position of the first gene in the evaluation order for which
-	// the input node is the output node of ´g´ and use it later to test if ´g´
-	// introduces recurrence
-	var firstDep int
-	var firstDepFound bool
-	for i, x = range o.oeval {
-		if !firstDepFound && x.p.input == g.p.output {
-			firstDep = i
-			firstDepFound = true
-			break
-		}
-	}
-
-	var lastDep int
-
-	// Store the position of the last gene in the evaluation order for which
-	// the output node is the input node of ´g´.
-	for i, x = range o.oeval[i+1:] {
+	for i, x := range o.oeval {
 		if x.p.output == g.p.input {
-			lastDep = i
+			inputDep = i
+		}
+
+		if outputDep == -1 && x.p.input == g.p.output {
+			outputDep = i
 		}
 	}
 
-	// If a node that depends on the output of ´g´ exists prior to 'g' in the
-	// evaluation order then we have recurrence.
-	if firstDepFound && firstDep < lastDep && !o.recurrence {
-		panic("recurrence not configured")
+	if inputDep != -1 && outputDep != -1 {
+		if !o.conf.Recurrent {
+			// If recurrency is not permitted then the output dependencies must
+			// occur before the input dependencies.
+			if outputDep <= inputDep {
+				panic("recurrence not configured")
+			}
+		}
 	}
 
-	// Calculate the insert position
-	var p int
-	if lastDep != 0 {
-		p = lastDep - 1
+	if inputDep != -1 {
+		// Append after the last gene that outputs to 'g'
+		if inputDep == len(o.oeval)-1 {
+			o.oeval = append(o.oeval, g)
+			return
+		}
+
+		o.oeval = append(o.oeval[:inputDep+1], append([]*gene{g}, o.oeval[inputDep+1:]...)...)
+		return
 	}
 
-	// Insert 'g'
-	o.oeval = append(o.oeval[:p], append([]*gene{g}, o.oeval[p:]...)...)
+	if outputDep != -1 {
+		// Append before the first gene that accepts output from 'g'
+		if outputDep == 0 {
+			o.oeval = append([]*gene{g}, o.oeval...)
+			return
+		}
+
+		o.oeval = append(o.oeval[:outputDep], append([]*gene{g}, o.oeval[outputDep:]...)...)
+		return
+	}
+
+	// 'g' doesn't depend on any other gene, append at the end of the
+	// evaluation order.
+	o.oeval = append(o.oeval, g)
 }
 
 func withGlobalActivationFunction(f activationFunction) organismOpt {
