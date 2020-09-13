@@ -5,7 +5,7 @@ import "sync/atomic"
 const (
 	terminal = nodeID(0)
 
-	defaultWeight   = float64(0.5)
+	defaultWeight   = float64(1)
 	defaultDisabled = false
 )
 
