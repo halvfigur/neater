@@ -117,8 +117,9 @@ func TestAdd(t *testing.T) {
 			//      +--> 3 --+
 			//		|        |
 			//		|        v
-			//	1 --+------> 2
-			name: "I(1), O(2), 1->3, 1->2, 3->2",
+			//	1 --+--------+---> 2
+
+			name: "One additional node connecting input and output",
 			conf: &Configuration{
 				Inputs:  1,
 				Outputs: 1,
@@ -137,7 +138,8 @@ func TestAdd(t *testing.T) {
 			//		 +--> 5 --+
 			//		 |        |
 			//	2 ---+        +---> 4
-			name: "testing",
+
+			name: "Two inputs join and then split to two outputs",
 			conf: &Configuration{
 				Inputs:  2,
 				Outputs: 2,
@@ -150,6 +152,32 @@ func TestAdd(t *testing.T) {
 			},
 			input:  []float64{1, 2},
 			expect: []float64{3, 3},
+		},
+		{
+			//	1 ---+         +---> 8 ---+
+			//		 |         |          |
+			//		 |         |          v
+			//		 +--> 7 ---+----------+---> 4
+			//		 |         |
+			//	2 ---+         +--------------> 5
+			//	3 ----------------------------> 6
+
+			name: "Complex topology 1",
+			conf: &Configuration{
+				Inputs:  3,
+				Outputs: 3,
+			},
+			pairs: []nodePair{
+				nodePair{1, 7},
+				nodePair{7, 8},
+				nodePair{8, 4},
+				nodePair{3, 6},
+				nodePair{7, 4},
+				nodePair{7, 5},
+				nodePair{2, 7},
+			},
+			input:  []float64{2, 1, 7},
+			expect: []float64{6, 3, 7},
 		},
 	}
 
