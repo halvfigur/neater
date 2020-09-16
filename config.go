@@ -24,5 +24,32 @@ type (
 
 		// Recurrent controlls whether recurrent connections are allowed
 		Recurrent bool
+
+		// MaxPopulationSize is the maximum number of different species
+		MaxPopulationSize int
+
+		// DisjointCoefficient
+		DisjointCoefficient float64
+
+		// ExcessCoefficient
+		ExcessCoefficient float64
+
+		// WeightDifferenceCoefficient
+		WeightDifferenceCoefficient float64
+
+		// CompatibilityThreshold
+		CompatibilityThreshold float64
+
+		// CompatibilityModifier
+		CompatibilityModifier float64
+
+		// DropOffAge
+		DropOffAge int
+
+		// SurvivalThreshold
+		SurvivalThreshold float64
+
+		// MutationPower
+		MutationPower float64
 	}
 )

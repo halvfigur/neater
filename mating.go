@@ -3,7 +3,7 @@ package main
 func mate(a, b *organism) *organism {
 
 	// Switch if necessary so that `a` has the best performance
-	if a.score < b.score {
+	if a.fitness < b.fitness {
 		a, b = b, a
 	}
 

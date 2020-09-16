@@ -1,10 +1,14 @@
 package main
 
-import "math/rand"
+import (
+	"math"
+	"math/rand"
+)
 
 type (
 	species struct {
 		conf       *Configuration
+		rep        *organism
 		population []*organism
 	}
 )
@@ -24,6 +28,15 @@ func newSpecies(conf *Configuration, o *organism) *species {
 	s.mutate()
 
 	return s
+}
+
+// normalize normalizes the fitness of the population
+func (s *species) normalize() {
+	l := float64(len(s.population))
+
+	for _, o := range s.population {
+		o.fitness /= l
+	}
 }
 
 func (s *species) mutate() {
@@ -112,4 +125,60 @@ func (s *species) getRandUnconnectedNodePair(o *organism) nodePair {
 	}
 
 	return p
+}
+
+func (s *species) belongs(o *organism) bool {
+	return s.distance(s.rep, o) < s.conf.CompatibilityThreshold
+}
+
+func (s *species) distance(a, b *organism) float64 {
+	var (
+		commonGenes   int
+		disjointGenes int
+		excessGenes   int
+		weightDiff    float64
+	)
+
+	i, j := 0, 0
+	for i < len(a.oinnov) && j < len(b.oinnov) {
+		if a.oinnov[i].innov == b.oinnov[j].innov {
+			// ´a´ and ´b´ have a gene in common
+			weightDiff += math.Abs(a.oinnov[i].weight - b.oinnov[i].weight)
+			commonGenes++
+			i = min(i+1, len(a.oinnov))
+			j = min(j+1, len(b.oinnov))
+		} else if a.oinnov[i].innov < b.oinnov[j].innov {
+			// `a` has a gene not present in ´b´
+			i = min(i+1, len(a.oinnov))
+			disjointGenes++
+		} else {
+			// `b` has a gene not present in ´a´
+			j = min(j+1, len(b.oinnov))
+			disjointGenes++
+		}
+	}
+
+	// Account for excess genes in ´a´ (if any)
+	excessGenes += len(a.oinnov) - i - 1
+
+	// Account for excess genes in ´b´ (if any)
+	excessGenes += len(b.oinnov) - j - 1
+
+	n := float64(1)
+	largest := float64(max(len(a.oinnov), len(b.oinnov)))
+	if largest > float64(20) {
+		// 'n' normalizes for genome size ('n' can be set to 1
+		// if both genomes are small, i.e., consist of fewer than 20 genes)
+		n = largest
+	}
+
+	// Shorten the names so that the calculation is readable
+	c1 := s.conf.ExcessCoefficient
+	c2 := s.conf.DisjointCoefficient
+	c3 := s.conf.WeightDifferenceCoefficient
+	e := float64(excessGenes)
+	d := float64(disjointGenes)
+	w := weightDiff / float64(commonGenes)
+
+	return ((c1*e)+(c2*d))/n + c3*w
 }

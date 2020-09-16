@@ -24,15 +24,12 @@ type (
 		// connections holds all the input to output connections
 		connections map[nodeID]map[nodeID]bool
 
-		// recurrence determines if recurrent nodes are permitted
-		recurrence bool
-
 		// strategy determines how to connect the nodes during the initial
 		// setup
 		strategy connectStrategy
 
-		// score is the organisms score
-		score float64
+		// fitness is the organisms fitness
+		fitness float64
 
 		// activate is the activation function to use when evealuating node
 		// output values
@@ -257,12 +254,6 @@ func withGlobalActivationFunction(f activationFunction) organismOpt {
 func withConnectStrategy(s connectStrategy) organismOpt {
 	return func(o *organism) {
 		o.strategy = s
-	}
-}
-
-func withRecurrence(r bool) organismOpt {
-	return func(o *organism) {
-		o.recurrence = r
 	}
 }
 
