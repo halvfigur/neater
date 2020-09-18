@@ -42,19 +42,20 @@ func nextInnov() geneID {
 	return geneID(atomic.AddUint64(&innovCount, 1))
 }
 
-func newGene(p nodePair,
-	opts ...geneOpt) *gene {
+func newGene(p nodePair, w float64, f activationFunction) *gene {
 	g := &gene{
 		innov:    innovIDGenerator(),
 		p:        p,
-		weight:   defaultWeight,
+		weight:   w,
 		disabled: defaultDisabled,
-		activate: defaultActivationFunction,
+		activate: f,
 	}
 
-	for _, o := range opts {
-		o(g)
-	}
+	/*
+		for _, o := range opts {
+			o(g)
+		}
+	*/
 
 	return g
 }
@@ -73,6 +74,7 @@ func (g *gene) equalTo(x *gene) bool {
 
 }
 
+/*
 func withWeight(weight float64) geneOpt {
 	return func(g *gene) {
 		g.weight = weight
@@ -90,3 +92,4 @@ func withActivationFunction(f activationFunction) geneOpt {
 		g.activate = f
 	}
 }
+*/

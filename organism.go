@@ -135,8 +135,7 @@ func (o *organism) connectTerminals() {
 func (o *organism) connectFull() {
 	for _, in := range o.inputs {
 		for _, out := range o.outputs {
-			g := newGene(nodePair{in, out},
-				withActivationFunction(o.conf.activate))
+			g := newGene(nodePair{in, out}, defaultWeight, o.conf.activate)
 			o.add(g)
 		}
 	}
@@ -149,8 +148,7 @@ func (o *organism) connectFlow() {
 		input := o.inputs[i%len(o.inputs)]
 		output := o.outputs[i%len(o.outputs)]
 
-		g := newGene(nodePair{input, output},
-			withActivationFunction(o.conf.activate))
+		g := newGene(nodePair{input, output}, defaultWeight, o.conf.activate)
 		o.add(g)
 	}
 }
@@ -359,8 +357,7 @@ func (o *organism) connectNodes(p nodePair, innovCache map[nodePair]*gene) *gene
 		return x
 	}
 
-	g := newGene(p,
-		withActivationFunction(o.conf.activate))
+	g := newGene(p, defaultWeight, o.conf.activate)
 	innovCache[p] = g
 	o.add(g)
 

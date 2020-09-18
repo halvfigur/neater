@@ -8,9 +8,9 @@ type (
 
 func NewNeat(c *Configuration) (*Neat, error) {
 	switch c.ActivationFunction {
-	case ActivationSigmoid:
+	case ActivateSigmoid:
 		c.activate = sigmoid
-	case ActivationUnit:
+	case ActivateUnit:
 		c.activate = unit
 	default:
 		panic("unknown activation function")

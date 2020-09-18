@@ -192,7 +192,7 @@ func TestAdd(t *testing.T) {
 				o.nodes[p.input] = 0
 				o.nodes[p.output] = 0
 
-				g := newGene(p, withActivationFunction(unit))
+				g := newGene(p, defaultWeight, unit)
 				o.add(g)
 			}
 

@@ -66,6 +66,6 @@ type (
 )
 
 const (
-	ActivationSigmoid = "sigmoid"
-	ActivationUnit    = "unit"
+	ActivateSigmoid = "sigmoid"
+	ActivateUnit    = "unit"
 )

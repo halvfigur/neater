@@ -64,6 +64,9 @@ func main() {
 
 		// InitialPopulationSize
 		InitialPopulationSize: 10,
+
+		// ActivationFunction
+		ActivationFunction: neat.ActivateSigmoid,
 	}
 
 	n, err := neat.NewNeat(c)

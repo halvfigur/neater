@@ -57,10 +57,10 @@ func TestRecombinate(t *testing.T) {
 			alphaScore: 1,
 			betaScore:  0,
 			commonGenes: []*gene{
-				newGene(nodePair{1, 2}),
-				newGene(nodePair{1, 3}),
-				newGene(nodePair{2, 4}),
-				newGene(nodePair{3, 4}),
+				newGene(nodePair{1, 2}, defaultWeight, unit),
+				newGene(nodePair{1, 3}, defaultWeight, unit),
+				newGene(nodePair{2, 4}, defaultWeight, unit),
+				newGene(nodePair{3, 4}, defaultWeight, unit),
 			},
 		},
 	}
