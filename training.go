@@ -21,6 +21,12 @@ type (
 	}
 
 	TrainerFactory struct {
+		// Inputs is the number of inputs
+		Inputs func() int
+
+		// Outputs is the number of outputs
+		Outputs func() int
+
 		// New creates a new Trainer
 		New func() Trainer
 	}

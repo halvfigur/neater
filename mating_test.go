@@ -37,7 +37,7 @@ func hasGene(o *organism, g *gene) bool {
 	return false
 }
 
-func TestMating(t *testing.T) {
+func TestRecombinate(t *testing.T) {
 	tests := []struct {
 		name        string
 		inputs      []nodeID
@@ -71,7 +71,7 @@ func TestMating(t *testing.T) {
 			a := genCleanOrganism(test.inputs, test.outputs, test.nodes, test.commonGenes)
 			b := a.copy()
 
-			c := s.mate(a, b)
+			c := s.recombinate(a, b)
 			require.Equal(t, a.strategy, c.strategy)
 
 			for i, g := range a.oinnov {

@@ -90,6 +90,12 @@ func NewXORTrainerFactory() TrainerFactory {
 		New: func() Trainer {
 			return NewXORTrainer()
 		},
+		Inputs: func() int {
+			return 2
+		},
+		Outputs: func() int {
+			return 1
+		},
 	}
 }
 

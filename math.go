@@ -8,6 +8,9 @@ import (
 var (
 	defaultRandIntn = rand.Intn
 	randIntn        = defaultRandIntn
+
+	defaultRandFloat64 = rand.Float64
+	randFloat64        = defaultRandFloat64
 )
 
 func min(a, b int) int {

@@ -2,6 +2,7 @@ package neat
 
 import (
 	"math"
+	"sort"
 )
 
 type (
@@ -10,6 +11,7 @@ type (
 		rep        *organism
 		champ      *organism
 		population []*organism
+		generation int
 	}
 )
 
@@ -22,24 +24,35 @@ func newSpecies(c *Configuration) *species {
 	o := newOrganism(c)
 	s.population[0] = o
 
-	for i := range s.population[1:] {
-		s.population[i+i] = o.copy()
+	for i := 1; i < len(s.population); i++ {
+		s.population[i] = o.copy()
 	}
 
 	return s
 }
 
 func (s *species) mutate() []*organism {
+
 	cache := make(map[nodePair]*gene)
+
 	//TODO set size of rejects based on configuration value
 	rejectIdx := make([]int, 0, 64)
 
 	for i, o := range s.population {
+		// Spare the champ from mutation
+		if o == s.champ {
+			continue
+		}
+
 		o.mutate(cache)
 
 		if !s.belongs(o) {
 			rejectIdx = append(rejectIdx, i)
 		}
+	}
+
+	if len(rejectIdx) == 0 {
+		return nil
 	}
 
 	population := make([]*organism, 0, len(s.population)-len(rejectIdx))
@@ -55,6 +68,7 @@ func (s *species) mutate() []*organism {
 	}
 
 	s.population = population
+	s.generation++
 
 	return rejects
 }
@@ -76,6 +90,14 @@ func (s *species) train(tf TrainerFactory, cf FitnessCalculatorFactory) {
 			s.champ = o
 		}
 	}
+
+	// Adjust the population according to the SurvivalThreshold
+	sort.Slice(s.population, func(i, j int) bool {
+		return s.population[i].fitness < s.population[j].fitness
+	})
+
+	survivalIdx := int(s.conf.SurvivalThreshold * float64(len(s.population)))
+	s.population = s.population[:max(1, survivalIdx)]
 
 	// Normalize the species fitness
 	s.normalize()
@@ -154,7 +176,23 @@ func (s *species) distance(a, b *organism) float64 {
 	return ((c1*e)+(c2*d))/n + c3*w
 }
 
-func (s *species) mate(a, b *organism) *organism {
+func (s *species) mate() {
+	n := len(s.population)
+	children := make([]*organism, 0, n*(n+1)/2)
+
+	for i, a := range s.population {
+		for j, b := range s.population {
+			if i != j {
+				c := s.recombinate(a, b)
+				children = append(children, c)
+			}
+		}
+	}
+
+	s.population = append(s.population, children...)
+}
+
+func (s *species) recombinate(a, b *organism) *organism {
 
 	// Switch if necessary so that `a` has the best performance
 	if a.fitness < b.fitness {
@@ -196,12 +234,16 @@ func (s *species) mate(a, b *organism) *organism {
 	// Handle trailing genes (if any)
 	for ; i < len(a.oinnov); i++ {
 		g := *a.oinnov[i]
+		o.nodes[g.p.input] = 0
+		o.nodes[g.p.output] = 0
 		o.add(&g)
 	}
 
 	// Handle trailing genes (if any)
 	for ; j < len(b.oinnov); j++ {
 		g := *b.oinnov[i]
+		o.nodes[g.p.input] = 0
+		o.nodes[g.p.output] = 0
 		o.add(&g)
 	}
 

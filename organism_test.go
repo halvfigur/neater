@@ -1,7 +1,6 @@
 package neat
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -9,9 +8,8 @@ import (
 
 func TestEval(t *testing.T) {
 	tests := []struct {
-		name     string
-		conf     *Configuration
-		activate activationFunction
+		name string
+		conf *Configuration
 
 		input  []float64
 		expect []float64
@@ -19,10 +17,10 @@ func TestEval(t *testing.T) {
 		{
 			name: "single unit",
 			conf: &Configuration{
-				Inputs:  1,
-				Outputs: 1,
+				Inputs:   1,
+				Outputs:  1,
+				activate: unit,
 			},
-			activate: unit,
 
 			input:  []float64{1},
 			expect: []float64{defaultWeight * unit(1)},
@@ -30,10 +28,10 @@ func TestEval(t *testing.T) {
 		{
 			name: "single sigmoid",
 			conf: &Configuration{
-				Inputs:  1,
-				Outputs: 1,
+				Inputs:   1,
+				Outputs:  1,
+				activate: sigmoid,
 			},
-			activate: sigmoid,
 
 			input:  []float64{1},
 			expect: []float64{defaultWeight * sigmoid(1)},
@@ -41,10 +39,10 @@ func TestEval(t *testing.T) {
 		{
 			name: "double unit",
 			conf: &Configuration{
-				Inputs:  2,
-				Outputs: 2,
+				Inputs:   2,
+				Outputs:  2,
+				activate: unit,
 			},
-			activate: unit,
 
 			input:  []float64{1, 2},
 			expect: []float64{defaultWeight * unit(1), defaultWeight * unit(2)},
@@ -52,10 +50,10 @@ func TestEval(t *testing.T) {
 		{
 			name: "double sigmoid",
 			conf: &Configuration{
-				Inputs:  2,
-				Outputs: 2,
+				Inputs:   2,
+				Outputs:  2,
+				activate: sigmoid,
 			},
-			activate: sigmoid,
 
 			input:  []float64{1, 2},
 			expect: []float64{defaultWeight * sigmoid(1), defaultWeight * sigmoid(2)},
@@ -63,10 +61,10 @@ func TestEval(t *testing.T) {
 		{
 			name: "single split",
 			conf: &Configuration{
-				Inputs:  1,
-				Outputs: 2,
+				Inputs:   1,
+				Outputs:  2,
+				activate: sigmoid,
 			},
-			activate: sigmoid,
 
 			input:  []float64{1},
 			expect: []float64{defaultWeight * sigmoid(1), defaultWeight * sigmoid(1)},
@@ -74,10 +72,10 @@ func TestEval(t *testing.T) {
 		{
 			name: "single join",
 			conf: &Configuration{
-				Inputs:  2,
-				Outputs: 1,
+				Inputs:   2,
+				Outputs:  1,
+				activate: sigmoid,
 			},
-			activate: sigmoid,
 
 			input:  []float64{1, 2},
 			expect: []float64{defaultWeight*sigmoid(1) + defaultWeight*sigmoid(2)},
@@ -87,7 +85,6 @@ func TestEval(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			o := newOrganism(test.conf,
-				withGlobalActivationFunction(test.activate),
 				withConnectStrategy(connectFlow))
 
 			output := o.Eval(test.input)
@@ -104,13 +101,12 @@ func TestAdd(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		conf     *Configuration
-		activate activationFunction
-		pairs    []nodePair
-		input    []float64
-		output   []float64
-		expect   []float64
+		name   string
+		conf   *Configuration
+		pairs  []nodePair
+		input  []float64
+		output []float64
+		expect []float64
 	}{
 		{
 			//
@@ -121,8 +117,9 @@ func TestAdd(t *testing.T) {
 
 			name: "One additional node connecting input and output",
 			conf: &Configuration{
-				Inputs:  1,
-				Outputs: 1,
+				Inputs:   1,
+				Outputs:  1,
+				activate: unit,
 			},
 			pairs: []nodePair{
 				nodePair{1, 2},
@@ -141,8 +138,9 @@ func TestAdd(t *testing.T) {
 
 			name: "Two inputs join and then split to two outputs",
 			conf: &Configuration{
-				Inputs:  2,
-				Outputs: 2,
+				Inputs:   2,
+				Outputs:  2,
+				activate: unit,
 			},
 			pairs: []nodePair{
 				nodePair{1, 5},
@@ -164,8 +162,9 @@ func TestAdd(t *testing.T) {
 
 			name: "Complex topology 1",
 			conf: &Configuration{
-				Inputs:  3,
-				Outputs: 3,
+				Inputs:   3,
+				Outputs:  3,
+				activate: unit,
 			},
 			pairs: []nodePair{
 				nodePair{1, 7},
@@ -184,7 +183,6 @@ func TestAdd(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			o := newOrganism(test.conf,
-				withGlobalActivationFunction(unit),
 				withConnectStrategy(connectNone))
 
 			// Reset node ID counter
@@ -195,15 +193,7 @@ func TestAdd(t *testing.T) {
 				o.nodes[p.output] = 0
 
 				g := newGene(p, withActivationFunction(unit))
-				fmt.Printf("Insert: %v\n", g.p)
 				o.add(g)
-
-				fmt.Print("After: ")
-				for _, g := range o.oeval {
-					fmt.Printf("%v ", g.p)
-				}
-				fmt.Println()
-				fmt.Println()
 			}
 
 			output := o.Eval(test.input)

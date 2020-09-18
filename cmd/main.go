@@ -1,71 +1,75 @@
-package neat
+package main
 
-type (
-	ActivationFunction string
+import (
+	"log"
+	"neat"
+)
 
-	Configuration struct {
+func main() {
+
+	tf := neat.NewXORTrainerFactory()
+	cf := neat.NewXORFitnessCalculatorFactory()
+
+	c := &neat.Configuration{
 		// Inputs is the number of inputs
-		Inputs int
+		Inputs: tf.Inputs(),
 
 		// Outputs is the number of outputs
-		Outputs int
+		Outputs: tf.Outputs(),
 
 		// WeightMutationProb is the probability that a given gene's weight is mutated
-		WeightMutationProb float64
+		WeightMutationProb: 0.1,
 
-		WeightMutationPower float64
+		WeightMutationPower: 2.5,
 
 		// AddNodeMutationProb is the probability that a gene is disabled and a new Node is inserted
-		AddNodeMutationProb float64
+		AddNodeMutationProb: 0.1,
 
 		// ConnectNodesMutationProb is the probability that a new gene connecting two nodes hkk
-		ConnectNodesMutationProb float64
+		ConnectNodesMutationProb: 0.1,
 
 		// PopulationThreshold is the maximum size of a species population
-		PopulationThreshold int
+		PopulationThreshold: 32,
 
 		// Recurrent controls whether recurrent connections are allowed
-		Recurrent bool
+		Recurrent: false,
 
 		// MaxPopulationSize is the maximum number of different species
-		MaxPopulationSize int
+		MaxPopulationSize: 32,
 
 		// DisjointCoefficient
-		DisjointCoefficient float64
+		DisjointCoefficient: 2.0,
 
 		// ExcessCoefficient
-		ExcessCoefficient float64
+		ExcessCoefficient: 2.0,
 
 		// WeightDifferenceCoefficient
-		WeightDifferenceCoefficient float64
+		WeightDifferenceCoefficient: 1.0,
 
 		// CompatibilityThreshold
-		CompatibilityThreshold float64
+		CompatibilityThreshold: 6.0,
 
 		// CompatibilityModifier
-		CompatibilityModifier float64
+		CompatibilityModifier: 0.3,
 
 		// DropOffAge
-		DropOffAge int
+		DropOffAge: 15,
 
 		// SurvivalThreshold controls how many percent of the population top
 		// performers survive and reproduce, range (0, 1]
-		SurvivalThreshold float64
+		SurvivalThreshold: 0.2,
 
 		// MutationPower
-		MutationPower float64
+		MutationPower: 2.5,
 
 		// InitialPopulationSize
-		InitialPopulationSize int
-
-		// ActivationFunction
-		ActivationFunction string
-
-		activate activationFunction
+		InitialPopulationSize: 10,
 	}
-)
 
-const (
-	ActivationSigmoid = "sigmoid"
-	ActivationUnit    = "unit"
-)
+	n, err := neat.NewNeat(c)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	n.Train(tf, cf)
+}

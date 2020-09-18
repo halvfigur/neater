@@ -31,10 +31,6 @@ type (
 
 		// fitness is the organisms fitness
 		fitness float64
-
-		// activate is the activation function to use when evealuating node
-		// output values
-		activate activationFunction
 	}
 
 	organismOpt func(*organism)
@@ -140,7 +136,7 @@ func (o *organism) connectFull() {
 	for _, in := range o.inputs {
 		for _, out := range o.outputs {
 			g := newGene(nodePair{in, out},
-				withActivationFunction(o.activate))
+				withActivationFunction(o.conf.activate))
 			o.add(g)
 		}
 	}
@@ -154,7 +150,7 @@ func (o *organism) connectFlow() {
 		output := o.outputs[i%len(o.outputs)]
 
 		g := newGene(nodePair{input, output},
-			withActivationFunction(o.activate))
+			withActivationFunction(o.conf.activate))
 		o.add(g)
 	}
 }
@@ -244,12 +240,6 @@ func (o *organism) add(g *gene) {
 	// 'g' doesn't depend on any other gene, append at the end of the
 	// evaluation order.
 	o.oeval = append(o.oeval, g)
-}
-
-func withGlobalActivationFunction(f activationFunction) organismOpt {
-	return func(o *organism) {
-		o.activate = f
-	}
 }
 
 func withConnectStrategy(s connectStrategy) organismOpt {
@@ -369,7 +359,8 @@ func (o *organism) connectNodes(p nodePair, innovCache map[nodePair]*gene) *gene
 		return x
 	}
 
-	g := newGene(p)
+	g := newGene(p,
+		withActivationFunction(o.conf.activate))
 	innovCache[p] = g
 	o.add(g)
 
@@ -378,17 +369,17 @@ func (o *organism) connectNodes(p nodePair, innovCache map[nodePair]*gene) *gene
 
 func (o *organism) mutate(innovCache map[nodePair]*gene) {
 	for _, g := range o.oinnov {
-		if rand.Intn(o.conf.WeightMutationProb) == 0 {
+		if randFloat64() < o.conf.WeightMutationProb {
 			g.weight *= rand.Float64() * o.conf.WeightMutationPower
 		}
 
-		if rand.Intn(o.conf.AddNodeMutationProb) == 0 {
+		if randFloat64() < o.conf.AddNodeMutationProb {
 			p := o.getRandUnconnectedNodePair()
 
 			o.connectNodes(p, innovCache)
 		}
 
-		if rand.Intn(o.conf.ConnectNodesMutationProb) == 0 {
+		if randFloat64() < o.conf.ConnectNodesMutationProb {
 			g.disabled = true
 
 			id := nodeIDGenerator()

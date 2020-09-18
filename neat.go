@@ -7,6 +7,15 @@ type (
 )
 
 func NewNeat(c *Configuration) (*Neat, error) {
+	switch c.ActivationFunction {
+	case ActivationSigmoid:
+		c.activate = sigmoid
+	case ActivationUnit:
+		c.activate = unit
+	default:
+		panic("unknown activation function")
+	}
+
 	n := &Neat{
 		conf: c,
 	}
@@ -24,7 +33,7 @@ func (n *Neat) Train(tf TrainerFactory, cf FitnessCalculatorFactory) {
 	sl := make([]*species, 0, n.conf.MaxPopulationSize)
 	sl = append(sl, newSpecies(n.conf))
 
-	rejects := make([]*organism, n.conf.MaxPopulationSize)
+	rejects := make([]*organism, 0, n.conf.MaxPopulationSize)
 	for {
 		for _, s := range sl {
 			s.train(tf, cf)
@@ -34,10 +43,14 @@ func (n *Neat) Train(tf TrainerFactory, cf FitnessCalculatorFactory) {
 			break
 		}
 
-		// Mutate organisms
+		// Mutate & mate organisms
 		for _, s := range sl {
 			rejected := s.mutate()
-			rejects = append(rejects, rejected...)
+			if rejected != nil {
+				rejects = append(rejects, rejected...)
+			}
+
+			s.mate()
 		}
 
 		// Handle organisms that where rejected by their species
