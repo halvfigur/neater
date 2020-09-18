@@ -2,6 +2,7 @@ package neat
 
 import (
 	"fmt"
+	"math/rand"
 )
 
 type (
@@ -307,4 +308,95 @@ func (o *organism) Eval(input []float64) []float64 {
 	}
 
 	return output
+}
+
+// Mutation things
+
+func (o *organism) getRandUnconnectedNodePair() nodePair {
+
+	var p nodePair
+
+	// Assume the nodes are already connected and keep going until we find
+	// a pair that aren't connected. This may get us stuck in an infinite loop.
+	alreadyConnected := true
+
+	for alreadyConnected {
+		p.input = o.randomNode()
+		p.output = o.randomNode()
+
+		// Make sure the input and output are different
+		if p.input == p.output {
+			continue
+		}
+
+		if !o.conf.Recurrent {
+			// If reccurent connections aren't allowed then the first gene that
+			// takes ´p.output´ as input must appear after the last gene that
+			// outputs to 'p.input' in the evaluation order
+			firstIdx := -1
+			lastIdx := -1
+			for i, g := range o.oeval {
+				if firstIdx == -1 {
+					if g.p.input == p.output {
+						firstIdx = i
+					}
+				}
+
+				if g.p.output == p.input {
+					lastIdx = i
+				}
+			}
+
+			// If there is a patch from ´p.input' to ´p.output' make sure that
+			// firstIdx > lastIdx
+			if firstIdx > lastIdx {
+				continue
+			}
+		}
+
+		// Make sure the nodes aren't already connected
+		alreadyConnected = o.connected(p.input, p.output)
+	}
+
+	return p
+}
+
+func (o *organism) connectNodes(p nodePair, innovCache map[nodePair]*gene) *gene {
+	if g, ok := innovCache[p]; ok {
+		// This innovation has already been made
+		x := g.copy()
+		o.add(x)
+		return x
+	}
+
+	g := newGene(p)
+	innovCache[p] = g
+	o.add(g)
+
+	return g
+}
+
+func (o *organism) mutate(innovCache map[nodePair]*gene) {
+	for _, g := range o.oinnov {
+		if rand.Intn(o.conf.WeightMutationProb) == 0 {
+			g.weight *= rand.Float64() * o.conf.WeightMutationPower
+		}
+
+		if rand.Intn(o.conf.AddNodeMutationProb) == 0 {
+			p := o.getRandUnconnectedNodePair()
+
+			o.connectNodes(p, innovCache)
+		}
+
+		if rand.Intn(o.conf.ConnectNodesMutationProb) == 0 {
+			g.disabled = true
+
+			id := nodeIDGenerator()
+			o.nodes[id] = 0
+
+			o.connectNodes(nodePair{g.p.input, id}, innovCache)
+			x := o.connectNodes(nodePair{id, g.p.output}, innovCache)
+			x.weight = g.weight
+		}
+	}
 }

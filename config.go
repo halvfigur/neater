@@ -51,5 +51,8 @@ type (
 
 		// MutationPower
 		MutationPower float64
+
+		// InitialPopulationSize
+		InitialPopulationSize int
 	}
 )

@@ -67,11 +67,11 @@ func TestMating(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			var s *species
 			a := genCleanOrganism(test.inputs, test.outputs, test.nodes, test.commonGenes)
 			b := a.copy()
 
-			c := mate(a, b)
-			require.Equal(t, a.recurrence, c.recurrence)
+			c := s.mate(a, b)
 			require.Equal(t, a.strategy, c.strategy)
 
 			for i, g := range a.oinnov {
