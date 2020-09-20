@@ -2,11 +2,13 @@ package main
 
 import (
 	"log"
+	"math/rand"
 	"neat"
 )
 
 func main() {
 
+	rand.Seed(0)
 	tf := neat.NewXORTrainerFactory()
 	cf := neat.NewXORFitnessCalculatorFactory()
 
@@ -57,7 +59,7 @@ func main() {
 
 		// SurvivalThreshold controls how many percent of the population top
 		// performers survive and reproduce, range (0, 1]
-		SurvivalThreshold: 0.2,
+		SurvivalThreshold: 1.0,
 
 		// MutationPower
 		MutationPower: 2.5,

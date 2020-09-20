@@ -28,16 +28,30 @@ func newSpecies(c *Configuration) *species {
 		s.population[i] = o.copy()
 	}
 
+	s.choseRepresentative()
+
 	return s
 }
 
-func (s *species) mutate() []*organism {
+func (s *species) choseRepresentative() {
+	// Chose a species representative
+	r := randIntn(len(s.population))
+	s.rep = s.population[r]
+}
 
+func (s *species) mutate() []*organism {
+	// A cache to hold innovations that have already been made in this
+	// generation.
 	cache := make(map[nodePair]*gene)
 
+	// rejectIdx stores the indices of the organisms that are no longer
+	// compatible with the species after mutation
 	//TODO set size of rejects based on configuration value
 	rejectIdx := make([]int, 0, 64)
 
+	// Iteratate over the population and mutate all organisms except the
+	// champion. Any organism that is no longer compatible with the species
+	// representative is marked as rejected
 	for i, o := range s.population {
 		// Spare the champ from mutation
 		if o == s.champ {
@@ -46,20 +60,27 @@ func (s *species) mutate() []*organism {
 
 		o.mutate(cache)
 
+		// If o no longer belongs, mark it as rejected
 		if !s.belongs(o) {
 			rejectIdx = append(rejectIdx, i)
 		}
 	}
 
+	// If no organism was rejected we are done
 	if len(rejectIdx) == 0 {
 		return nil
 	}
 
+	// Time to separate out the rejected organisms.
+
+	// population stores all organisms that should remain in the species
 	population := make([]*organism, 0, len(s.population)-len(rejectIdx))
+
+	// rejects stores all organisms that should be removed from the species
 	rejects := make([]*organism, 0, len(rejectIdx))
 
 	for i, o := range s.population {
-		if i == rejectIdx[0] {
+		if len(rejectIdx) > 0 && i == rejectIdx[0] {
 			rejects = append(rejects, o)
 			rejectIdx = rejectIdx[1:]
 		} else {
@@ -102,9 +123,8 @@ func (s *species) train(tf TrainerFactory, cf FitnessCalculatorFactory) {
 	// Normalize the species fitness
 	s.normalize()
 
-	// Chose a species representative
-	r := randIntn(len(s.population))
-	s.rep = s.population[r]
+	// Chose a new species representative
+	s.choseRepresentative()
 }
 
 // normalize normalizes the fitness of the population
@@ -220,7 +240,7 @@ func (s *species) recombinate(a, b *organism) *organism {
 			i = min(i+1, len(a.oinnov))
 		} else {
 			// `b` has a gene not present in ´a´
-			g = *b.oinnov[i]
+			g = *b.oinnov[j]
 			j = min(j+1, len(b.oinnov))
 		}
 
@@ -241,7 +261,7 @@ func (s *species) recombinate(a, b *organism) *organism {
 
 	// Handle trailing genes (if any)
 	for ; j < len(b.oinnov); j++ {
-		g := *b.oinnov[i]
+		g := *b.oinnov[j]
 		o.nodes[g.p.input] = 0
 		o.nodes[g.p.output] = 0
 		o.add(&g)

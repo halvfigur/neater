@@ -3,6 +3,7 @@ package neat
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 )
 
 type (
@@ -153,12 +154,24 @@ func (o *organism) connectFlow() {
 	}
 }
 
-func (o *organism) connected(input, output nodeID) bool {
-	if o.connections[input] == nil {
+func (o *organism) connect(p nodePair) {
+	if o.connections[p.input] == nil {
+		o.connections[p.input] = make(map[nodeID]bool)
+	}
+	o.connections[p.input][p.output] = true
+
+	if o.connections[p.output] == nil {
+		o.connections[p.output] = make(map[nodeID]bool)
+	}
+	o.connections[p.output][p.input] = true
+}
+
+func (o *organism) connected(p nodePair) bool {
+	if o.connections[p.input] == nil {
 		return false
 	}
 
-	return o.connections[input][output]
+	return o.connections[p.input][p.output]
 }
 
 func (o *organism) add(g *gene) {
@@ -171,10 +184,7 @@ func (o *organism) add(g *gene) {
 	}
 
 	// Make note that the nodes are connected
-	if o.connections[g.p.input] == nil {
-		o.connections[g.p.input] = make(map[nodeID]bool)
-	}
-	o.connections[g.p.input][g.p.output] = true
+	o.connect(g.p)
 
 	// Add gene at end of innovation order
 	o.oinnov = append(o.oinnov, g)
@@ -193,6 +203,11 @@ func (o *organism) add(g *gene) {
 	// Find the first gene that 'g' outputs to
 	outputDep := -1
 
+	// Store the index of the last gene that share the same input node (if any)
+	// so that we can inser our gene immediately after it if there's no output
+	// dependency.
+	lastCommon := -1
+
 	for i, x := range o.oeval {
 		if x.p.output == g.p.input {
 			inputDep = i
@@ -201,6 +216,10 @@ func (o *organism) add(g *gene) {
 		if outputDep == -1 && x.p.input == g.p.output {
 			outputDep = i
 		}
+
+		if x.p.input == g.p.input {
+			lastCommon = i
+		}
 	}
 
 	if inputDep != -1 && outputDep != -1 {
@@ -208,6 +227,7 @@ func (o *organism) add(g *gene) {
 			// If recurrency is not permitted then the output dependencies must
 			// occur before the input dependencies.
 			if outputDep <= inputDep {
+				fmt.Println(o)
 				panic("recurrence not configured")
 			}
 		}
@@ -237,6 +257,10 @@ func (o *organism) add(g *gene) {
 
 	// 'g' doesn't depend on any other gene, append at the end of the
 	// evaluation order.
+	if lastCommon != -1 {
+		o.oeval = append(o.oeval[:lastCommon+1], append([]*gene{g}, o.oeval[lastCommon+1:]...)...)
+		return
+	}
 	o.oeval = append(o.oeval, g)
 }
 
@@ -300,7 +324,74 @@ func (o *organism) Eval(input []float64) []float64 {
 
 // Mutation things
 
-func (o *organism) getRandUnconnectedNodePair() nodePair {
+func (o *organism) getRandUnconnectedNodePair() (nodePair, bool) {
+
+	// Create a shallow copy of all the nodes
+	nodes := make(map[nodeID]float64)
+	for k := range o.nodes {
+		nodes[k] = 0
+	}
+
+	for len(nodes) > 0 {
+		var a nodeID
+
+		// Pick a node at random
+		for a = range nodes {
+			break
+		}
+
+		delete(nodes, a)
+
+		// Iterate over the remaining nodes
+		for b := range nodes {
+
+			p := nodePair{a, b}
+			/*
+				if tested[b] {
+					continue
+				}
+			*/
+
+			if o.connected(p) {
+				continue
+			}
+
+			if o.conf.Recurrent {
+				return p, true
+			}
+
+			// If ´a´ should connect to ´b´, then the last gene that outputs to
+			// a must appear before the first node that takes input from ´b´ in
+			// the evaluation order.
+
+			// Find the last index of the gene that outputs to 'a'
+			outputDep := -1
+
+			// Find the first index of the gene that taked input from 'b'
+			inputDep := -1
+
+			for i, g := range o.oeval {
+				if g.p.output == a {
+					outputDep = i
+				}
+
+				if inputDep == -1 && g.p.input == b {
+					inputDep = i
+				}
+			}
+
+			//
+			if inputDep < outputDep {
+				continue
+			}
+
+		}
+	}
+
+	return nodePair{}, false
+}
+
+func (o *organism) _getRandUnconnectedNodePair() nodePair {
 
 	var p nodePair
 
@@ -318,32 +409,55 @@ func (o *organism) getRandUnconnectedNodePair() nodePair {
 		}
 
 		if !o.conf.Recurrent {
+			// If recurrent connections are not permitted then the first node
+			// g outputs to must appear after the last node g accepts input from.
+
+			// Find the last gene that ´g´ accepts input from
+			inputDep := -1
+			// Find the first gene that 'g' outputs to
+			outputDep := -1
+
+			for i, x := range o.oeval {
+				if x.p.output == p.input {
+					inputDep = i
+				}
+
+				if outputDep == -1 && x.p.input == p.output {
+					outputDep = i
+				}
+			}
+			//
+			if inputDep > outputDep {
+				continue
+			}
 			// If reccurent connections aren't allowed then the first gene that
 			// takes ´p.output´ as input must appear after the last gene that
 			// outputs to 'p.input' in the evaluation order
-			firstIdx := -1
-			lastIdx := -1
-			for i, g := range o.oeval {
-				if firstIdx == -1 {
-					if g.p.input == p.output {
-						firstIdx = i
+			/*
+				firstIdx := -1
+				lastIdx := -1
+				for i, g := range o.oeval {
+					if firstIdx == -1 {
+						if g.p.input == p.output {
+							firstIdx = i
+						}
+					}
+
+					if g.p.output == p.input {
+						lastIdx = i
 					}
 				}
 
-				if g.p.output == p.input {
-					lastIdx = i
+				// If there is a patch from ´p.input' to ´p.output' make sure that
+				// firstIdx > lastIdx
+				if firstIdx > lastIdx {
+					continue
 				}
-			}
-
-			// If there is a patch from ´p.input' to ´p.output' make sure that
-			// firstIdx > lastIdx
-			if firstIdx > lastIdx {
-				continue
-			}
+			*/
 		}
 
 		// Make sure the nodes aren't already connected
-		alreadyConnected = o.connected(p.input, p.output)
+		alreadyConnected = o.connected(p)
 	}
 
 	return p
@@ -371,9 +485,9 @@ func (o *organism) mutate(innovCache map[nodePair]*gene) {
 		}
 
 		if randFloat64() < o.conf.AddNodeMutationProb {
-			p := o.getRandUnconnectedNodePair()
-
-			o.connectNodes(p, innovCache)
+			if p, ok := o.getRandUnconnectedNodePair(); ok {
+				o.connectNodes(p, innovCache)
+			}
 		}
 
 		if randFloat64() < o.conf.ConnectNodesMutationProb {
@@ -387,4 +501,13 @@ func (o *organism) mutate(innovCache map[nodePair]*gene) {
 			x.weight = g.weight
 		}
 	}
+}
+
+func (o *organism) String() string {
+	l := make([]string, 0, 16)
+
+	for _, g := range o.oeval {
+		l = append(l, g.String())
+	}
+	return strings.Join(l, "\n")
 }

@@ -1,6 +1,7 @@
 package neat
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -93,7 +94,7 @@ func TestEval(t *testing.T) {
 	}
 }
 
-func TestAdd(t *testing.T) {
+func TestAddNotRecurrent(t *testing.T) {
 	var nCount uint64
 	nodeIDGenerator = func() nodeID {
 		nCount++
@@ -198,6 +199,92 @@ func TestAdd(t *testing.T) {
 
 			output := o.Eval(test.input)
 			require.Equal(t, test.expect, output)
+		})
+	}
+}
+
+func TestPanicCases(t *testing.T) {
+	var nCount uint64
+	nodeIDGenerator = func() nodeID {
+		nCount++
+		return nodeID(nCount)
+	}
+
+	tests := []struct {
+		name  string
+		conf  *Configuration
+		pairs []nodePair
+		input []float64
+	}{
+		/*
+			{
+				name: "case 1",
+				conf: &Configuration{
+					Inputs:  2,
+					Outputs: 1,
+				},
+				pairs: []nodePair{
+					nodePair{1, 3},
+					nodePair{2, 3},
+					nodePair{1, 6},
+					nodePair{6, 3},
+				},
+				input: []float64{1, 1},
+			},
+		*/
+		{
+			name: "case 2",
+			conf: &Configuration{
+				Inputs:  2,
+				Outputs: 1,
+			},
+			pairs: []nodePair{
+				/*
+					I: 1  W: 1.30 P: In: 1  Out: 3
+					I: 5  W: 1.21 P: In: 1  Out: 5
+					I: 31 W: 1.00 P: In: 5  Out: 18
+					I: 32 W: 1.30 P: In: 18 Out: 3
+					I: 15 W: 1.00 P: In: 1  Out: 10
+					I: 4621 W: 1.00 P: In: 1  Out: 2319
+					I: 16 W: 1.30 P: In: 10 Out: 3
+					I: 6  W: 1.30 P: In: 5  Out: 3
+					I: 2  W: 1.97 P: In: 2  Out: 3
+				*/
+
+				nodePair{1, 3},    // 1
+				nodePair{2, 3},    // 2
+				nodePair{1, 5},    // 5
+				nodePair{5, 3},    // 6
+				nodePair{1, 10},   //15
+				nodePair{10, 3},   //16
+				nodePair{5, 18},   // 31
+				nodePair{18, 3},   // 32
+				nodePair{1, 2319}, // 4621
+				nodePair{2319, 5}, // 4622
+			},
+			input: []float64{1, 1},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			o := newOrganism(test.conf,
+				withConnectStrategy(connectNone))
+
+			// Reset node ID counter
+			nCount = 0
+			for i, p := range test.pairs {
+
+				o.nodes[p.input] = 0
+				o.nodes[p.output] = 0
+
+				fmt.Printf("Add: %s\n", p)
+				g := newGene(p, defaultWeight, unit)
+				o.add(g)
+				fmt.Printf("---Iteration %d----\n%s\n\n", i+1, o)
+			}
+
+			o.Eval(test.input)
 		})
 	}
 }

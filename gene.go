@@ -1,6 +1,9 @@
 package neat
 
-import "sync/atomic"
+import (
+	"fmt"
+	"sync/atomic"
+)
 
 const (
 	terminal = nodeID(0)
@@ -74,22 +77,10 @@ func (g *gene) equalTo(x *gene) bool {
 
 }
 
-/*
-func withWeight(weight float64) geneOpt {
-	return func(g *gene) {
-		g.weight = weight
-	}
+func (g *gene) String() string {
+	return fmt.Sprintf("I: %-2d W: %2.2f P: %s", g.innov, g.weight, g.p)
 }
 
-func withDisabled(disabled bool) geneOpt {
-	return func(g *gene) {
-		g.disabled = disabled
-	}
+func (p nodePair) String() string {
+	return fmt.Sprintf("In: %-2d Out: %-2d", p.input, p.output)
 }
-
-func withActivationFunction(f activationFunction) geneOpt {
-	return func(g *gene) {
-		g.activate = f
-	}
-}
-*/
