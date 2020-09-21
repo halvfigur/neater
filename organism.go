@@ -230,7 +230,7 @@ func (o *organism) add(g *gene) {
 		}
 	}
 
-	fmt.Printf("inputDep: %-4d outputDep: %-4d\n", inputDep, outputDep)
+	//fmt.Printf("inputDep: %-4d outputDep: %-4d\n", inputDep, outputDep)
 
 	if inputDep == -1 && outputDep == -1 {
 		o.oeval = append([]*gene{g}, o.oeval...)
@@ -242,9 +242,9 @@ func (o *organism) add(g *gene) {
 			// If recurrency is not permitted then the output dependencies must
 			// occur before the input dependencies.
 			if outputDep <= inputDep {
-				fmt.Println("InputDep ", inputDep, " OutputDep ", outputDep)
-				fmt.Println("Add: ", g)
-				fmt.Println(o)
+				//fmt.Println("InputDep ", inputDep, " OutputDep ", outputDep)
+				//fmt.Println("Add: ", g)
+				//fmt.Println(o)
 				panic("recurrence not configured")
 			}
 		}
@@ -491,19 +491,27 @@ func (o *organism) connectNodes(p nodePair, innovCache map[nodePair]*gene) *gene
 }
 
 func (o *organism) mutate(innovCache map[nodePair]*gene) {
-	for _, g := range o.oinnov {
-		if randFloat64() < o.conf.WeightMutationProb {
-			g.weight *= rand.Float64() * o.conf.WeightMutationPower
-		}
-
-		if randFloat64() < o.conf.AddNodeMutationProb {
-			if p, ok := o.getRandUnconnectedNodePair(); ok {
-				o.connectNodes(p, innovCache)
+	if randFloat64() < o.conf.WeightMutationProb {
+		for {
+			i := randIntn(len(o.oinnov))
+			g := o.oinnov[i]
+			if !g.disabled {
+				g.weight *= rand.Float64() * o.conf.WeightMutationPower
+				break
 			}
 		}
+	}
 
-		if randFloat64() < o.conf.ConnectNodesMutationProb {
-			g.disabled = true
+	if randFloat64() < o.conf.ConnectNodesMutationProb {
+		if p, ok := o.getRandUnconnectedNodePair(); ok {
+			o.connectNodes(p, innovCache)
+		}
+	}
+
+	if randFloat64() < o.conf.AddNodeMutationProb {
+		i := randIntn(len(o.oinnov))
+		g := o.oinnov[i]
+		if !g.disabled {
 
 			id := nodeIDGenerator()
 			o.nodes[id] = 0
@@ -511,6 +519,7 @@ func (o *organism) mutate(innovCache map[nodePair]*gene) {
 			o.connectNodes(nodePair{g.p.input, id}, innovCache)
 			x := o.connectNodes(nodePair{id, g.p.output}, innovCache)
 			x.weight = g.weight
+			g.disabled = true
 		}
 	}
 }

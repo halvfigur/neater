@@ -31,7 +31,8 @@ func main() {
 		ConnectNodesMutationProb: 0.1,
 
 		// PopulationThreshold is the maximum size of a species population
-		PopulationThreshold: 32,
+		//PopulationThreshold: 32,
+		PopulationThreshold: 8,
 
 		// Recurrent controls whether recurrent connections are allowed
 		Recurrent: false,
@@ -59,13 +60,14 @@ func main() {
 
 		// SurvivalThreshold controls how many percent of the population top
 		// performers survive and reproduce, range (0, 1]
-		SurvivalThreshold: 1.0,
+		SurvivalThreshold: 0.25,
 
 		// MutationPower
 		MutationPower: 2.5,
 
 		// InitialPopulationSize
-		InitialPopulationSize: 10,
+		//InitialPopulationSize: 8,
+		InitialPopulationSize: 2,
 
 		// ActivationFunction
 		ActivationFunction: neat.ActivateSigmoid,

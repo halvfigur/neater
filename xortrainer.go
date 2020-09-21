@@ -55,22 +55,22 @@ func (c *XORFitnessCalculator) AddResult(input, output []float64) {
 	v0, v1 := float64(0), float64(1)
 
 	if i0 == v0 && i1 == v0 {
-		c.aggrErr += v0 - o
+		c.aggrErr += (v0 - o) * (v0 - o)
 		return
 	}
 
 	if i0 == v0 && i1 == v1 {
-		c.aggrErr += v1 - o
+		c.aggrErr += (v1 - o) * (v1 - o)
 		return
 	}
 
 	if i0 == v1 && i1 == v0 {
-		c.aggrErr += v1 - o
+		c.aggrErr += (v1 - o) * (v1 - o)
 		return
 	}
 
 	if i0 == v1 && i1 == v1 {
-		c.aggrErr += v0 - o
+		c.aggrErr += (v0 - o) * (v0 - o)
 		return
 	}
 

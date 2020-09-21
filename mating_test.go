@@ -1,11 +1,5 @@
 package neat
 
-import (
-	"testing"
-
-	"github.com/stretchr/testify/require"
-)
-
 func genCleanOrganism(inputs, outputs, nodes []nodeID, genes []*gene) *organism {
 	o := newOrganism(&Configuration{
 		Inputs:  len(inputs),
@@ -37,6 +31,7 @@ func hasGene(o *organism, g *gene) bool {
 	return false
 }
 
+/*
 func TestRecombinate(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -80,3 +75,4 @@ func TestRecombinate(t *testing.T) {
 		})
 	}
 }
+*/

@@ -54,12 +54,6 @@ func newGene(p nodePair, w float64, f activationFunction) *gene {
 		activate: f,
 	}
 
-	/*
-		for _, o := range opts {
-			o(g)
-		}
-	*/
-
 	return g
 }
 

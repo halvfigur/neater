@@ -1,7 +1,6 @@
 package neat
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -279,15 +278,15 @@ func TestPanicCases(t *testing.T) {
 
 			// Reset node ID counter
 			nCount = 0
-			for i, p := range test.pairs {
+			for _, p := range test.pairs {
 
 				o.nodes[p.input] = 0
 				o.nodes[p.output] = 0
 
-				fmt.Printf("Add: %s\n", p)
+				//fmt.Printf("Add: %s\n", p)
 				g := newGene(p, defaultWeight, unit)
 				o.add(g)
-				fmt.Printf("---Iteration %d----\n%s\n\n", i+1, o)
+				//fmt.Printf("---Iteration %d----\n%s\n\n", i+1, o)
 			}
 
 			o.Eval(test.input)
