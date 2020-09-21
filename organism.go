@@ -206,7 +206,11 @@ func (o *organism) add(g *gene) {
 	// Store the index of the last gene that share the same input node (if any)
 	// so that we can inser our gene immediately after it if there's no output
 	// dependency.
-	lastCommon := -1
+	lastCommonInput := -1
+	_ = lastCommonInput
+
+	lastCommonOutput := -1
+	_ = lastCommonOutput
 
 	for i, x := range o.oeval {
 		if x.p.output == g.p.input {
@@ -218,8 +222,19 @@ func (o *organism) add(g *gene) {
 		}
 
 		if x.p.input == g.p.input {
-			lastCommon = i
+			lastCommonInput = i
 		}
+
+		if x.p.output == g.p.output {
+			lastCommonOutput = i
+		}
+	}
+
+	fmt.Printf("inputDep: %-4d outputDep: %-4d\n", inputDep, outputDep)
+
+	if inputDep == -1 && outputDep == -1 {
+		o.oeval = append([]*gene{g}, o.oeval...)
+		return
 	}
 
 	if inputDep != -1 && outputDep != -1 {
@@ -227,6 +242,8 @@ func (o *organism) add(g *gene) {
 			// If recurrency is not permitted then the output dependencies must
 			// occur before the input dependencies.
 			if outputDep <= inputDep {
+				fmt.Println("InputDep ", inputDep, " OutputDep ", outputDep)
+				fmt.Println("Add: ", g)
 				fmt.Println(o)
 				panic("recurrence not configured")
 			}
@@ -234,34 +251,29 @@ func (o *organism) add(g *gene) {
 	}
 
 	if inputDep != -1 {
-		// Append after the last gene that outputs to 'g'
-		if inputDep == len(o.oeval)-1 {
-			o.oeval = append(o.oeval, g)
-			return
-		}
-
+		// Insert the new gene immediately after its last dependency
 		o.oeval = append(o.oeval[:inputDep+1], append([]*gene{g}, o.oeval[inputDep+1:]...)...)
 		return
 	}
 
 	if outputDep != -1 {
-		// Append before the first gene that accepts output from 'g'
-		if outputDep == 0 {
-			o.oeval = append([]*gene{g}, o.oeval...)
-			return
-		}
-
+		// Insert the new gene immediately before its first depedant
 		o.oeval = append(o.oeval[:outputDep], append([]*gene{g}, o.oeval[outputDep:]...)...)
+		return
+	}
+
+	if lastCommonInput != -1 {
+		// 'g' doesn't depend on any other gene, append at the end of the
+		// evaluation order.
+		o.oeval = append(o.oeval[:lastCommonInput+1], append([]*gene{g}, o.oeval[lastCommonInput+1:]...)...)
 		return
 	}
 
 	// 'g' doesn't depend on any other gene, append at the end of the
 	// evaluation order.
-	if lastCommon != -1 {
-		o.oeval = append(o.oeval[:lastCommon+1], append([]*gene{g}, o.oeval[lastCommon+1:]...)...)
-		return
-	}
-	o.oeval = append(o.oeval, g)
+	//o.oeval = append(o.oeval, g)
+	//o.oeval = append([]*gene{g}, o.oeval...)
+
 }
 
 func withConnectStrategy(s connectStrategy) organismOpt {
