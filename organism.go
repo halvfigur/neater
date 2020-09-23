@@ -403,78 +403,6 @@ func (o *organism) getRandUnconnectedNodePair() (nodePair, bool) {
 	return nodePair{}, false
 }
 
-func (o *organism) _getRandUnconnectedNodePair() nodePair {
-
-	var p nodePair
-
-	// Assume the nodes are already connected and keep going until we find
-	// a pair that aren't connected. This may get us stuck in an infinite loop.
-	alreadyConnected := true
-
-	for alreadyConnected {
-		p.input = o.randomNode()
-		p.output = o.randomNode()
-
-		// Make sure the input and output are different
-		if p.input == p.output {
-			continue
-		}
-
-		if !o.conf.Recurrent {
-			// If recurrent connections are not permitted then the first node
-			// g outputs to must appear after the last node g accepts input from.
-
-			// Find the last gene that ´g´ accepts input from
-			inputDep := -1
-			// Find the first gene that 'g' outputs to
-			outputDep := -1
-
-			for i, x := range o.oeval {
-				if x.p.output == p.input {
-					inputDep = i
-				}
-
-				if outputDep == -1 && x.p.input == p.output {
-					outputDep = i
-				}
-			}
-			//
-			if inputDep > outputDep {
-				continue
-			}
-			// If reccurent connections aren't allowed then the first gene that
-			// takes ´p.output´ as input must appear after the last gene that
-			// outputs to 'p.input' in the evaluation order
-			/*
-				firstIdx := -1
-				lastIdx := -1
-				for i, g := range o.oeval {
-					if firstIdx == -1 {
-						if g.p.input == p.output {
-							firstIdx = i
-						}
-					}
-
-					if g.p.output == p.input {
-						lastIdx = i
-					}
-				}
-
-				// If there is a patch from ´p.input' to ´p.output' make sure that
-				// firstIdx > lastIdx
-				if firstIdx > lastIdx {
-					continue
-				}
-			*/
-		}
-
-		// Make sure the nodes aren't already connected
-		alreadyConnected = o.connected(p)
-	}
-
-	return p
-}
-
 func (o *organism) connectNodes(p nodePair, innovCache map[nodePair]*gene) *gene {
 	if g, ok := innovCache[p]; ok {
 		// This innovation has already been made
@@ -484,43 +412,81 @@ func (o *organism) connectNodes(p nodePair, innovCache map[nodePair]*gene) *gene
 	}
 
 	g := newGene(p, defaultWeight, o.conf.activate)
-	innovCache[p] = g
+	innovCache[p] = g.copy()
 	o.add(g)
 
 	return g
 }
 
+func (o *organism) findOffender() bool {
+	return len(o.oinnov) == 2 && (o.oinnov[0].disabled || o.oinnov[1].disabled)
+}
+
+func (o *organism) mutateWeight() {
+	for {
+		i := randIntn(len(o.oinnov))
+		g := o.oinnov[i]
+		if !g.disabled {
+			g.weight *= rand.Float64() * o.conf.WeightMutationPower
+			break
+		}
+	}
+}
+
+func (o *organism) mutateConnectedNodes(innovCache map[nodePair]*gene) {
+	if p, ok := o.getRandUnconnectedNodePair(); ok {
+		o.connectNodes(p, innovCache)
+	}
+}
+
+func (o *organism) mutateAddNode(innovCache map[nodePair]*gene) {
+	i := randIntn(len(o.oinnov))
+	g := o.oinnov[i]
+	if !g.disabled {
+
+		id := nodeIDGenerator()
+		o.nodes[id] = 0
+
+		o.connectNodes(nodePair{g.p.input, id}, innovCache)
+		x := o.connectNodes(nodePair{id, g.p.output}, innovCache)
+		x.weight = g.weight
+		g.disabled = true
+	}
+
+	if o.findOffender() {
+		panic("Organism: mutateAddNode")
+	}
+}
+
 func (o *organism) mutate(innovCache map[nodePair]*gene) {
+
+	if o.findOffender() {
+		fmt.Println("Organism: Offender found before starting mutation")
+	}
+
 	if randFloat64() < o.conf.WeightMutationProb {
-		for {
-			i := randIntn(len(o.oinnov))
-			g := o.oinnov[i]
-			if !g.disabled {
-				g.weight *= rand.Float64() * o.conf.WeightMutationPower
-				break
-			}
+		o.mutateWeight()
+		if o.findOffender() {
+			fmt.Println("Organism: Offender found after weight mutation")
 		}
 	}
 
 	if randFloat64() < o.conf.ConnectNodesMutationProb {
-		if p, ok := o.getRandUnconnectedNodePair(); ok {
-			o.connectNodes(p, innovCache)
+		o.mutateConnectedNodes(innovCache)
+		if o.findOffender() {
+			fmt.Println("Organism: Offender found after connect nodes mutation")
 		}
 	}
 
 	if randFloat64() < o.conf.AddNodeMutationProb {
-		i := randIntn(len(o.oinnov))
-		g := o.oinnov[i]
-		if !g.disabled {
-
-			id := nodeIDGenerator()
-			o.nodes[id] = 0
-
-			o.connectNodes(nodePair{g.p.input, id}, innovCache)
-			x := o.connectNodes(nodePair{id, g.p.output}, innovCache)
-			x.weight = g.weight
-			g.disabled = true
+		o.mutateAddNode(innovCache)
+		if o.findOffender() {
+			fmt.Println("Organism: Offender found after add node mutation")
 		}
+	}
+
+	if o.findOffender() {
+		fmt.Println("Organism: Offender found unexpectedly")
 	}
 }
 
