@@ -20,15 +20,15 @@ func main() {
 		Outputs: tf.Outputs(),
 
 		// WeightMutationProb is the probability that a given gene's weight is mutated
-		WeightMutationProb: 0.1,
+		WeightMutationProb: 0.5,
 
 		WeightMutationPower: 2.5,
 
 		// AddNodeMutationProb is the probability that a gene is disabled and a new Node is inserted
-		AddNodeMutationProb: 0.1,
+		AddNodeMutationProb: 0.5,
 
 		// ConnectNodesMutationProb is the probability that a new gene connecting two nodes hkk
-		ConnectNodesMutationProb: 0.1,
+		ConnectNodesMutationProb: 0.5,
 
 		// PopulationThreshold is the maximum size of a species population
 		PopulationThreshold: 32,
@@ -37,7 +37,7 @@ func main() {
 		Recurrent: false,
 
 		// MaxPopulationSize is the maximum number of different species
-		MaxPopulationSize: 32,
+		MaxPopulationSize: 64,
 
 		// DisjointCoefficient
 		DisjointCoefficient: 2.0,
@@ -59,13 +59,13 @@ func main() {
 
 		// SurvivalThreshold controls how many percent of the population top
 		// performers survive and reproduce, range (0, 1]
-		SurvivalThreshold: 1.0,
+		SurvivalThreshold: 0.25,
 
 		// MutationPower
 		MutationPower: 2.5,
 
 		// InitialPopulationSize
-		InitialPopulationSize: 10,
+		InitialPopulationSize: 8,
 
 		// ActivationFunction
 		ActivationFunction: neat.ActivateSigmoid,

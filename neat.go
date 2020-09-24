@@ -2,6 +2,7 @@ package neat
 
 import (
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -54,10 +55,26 @@ func (n *Neat) Train(tf TrainerFactory, cf FitnessCalculatorFactory) {
 		for _, s := range ss {
 			s.train(tf, cf)
 
-			if n.stats.Champion == nil ||
-				s.champ.fitness > n.stats.Champion.champ.fitness {
-				n.stats.Champion = s
-			}
+			/*
+				if n.stats.Champion == nil {
+					n.stats.Champion = s
+				}
+
+				if s.champ.fitness > n.stats.Champion.champ.fitness {
+					n.stats.Champion.champ = s.champ
+				}
+			*/
+		}
+
+		// Adjust the population according to the SurvivalThreshold
+		sort.Slice(ss, func(i, j int) bool {
+			return ss[i].champ.fitness > ss[j].champ.fitness
+		})
+
+		n.stats.Champion = ss[0]
+
+		if len(ss) > n.conf.MaxPopulationSize {
+			ss = ss[:n.conf.MaxPopulationSize]
 		}
 
 		if !condition {
@@ -106,6 +123,8 @@ func (n *Neat) printStats() {
 	fmt.Printf("Generation:        %-3d\n", n.stats.Champion.generation)
 	fmt.Printf("Population size:   %-3d\n", len(n.stats.Champion.population))
 	fmt.Printf("Fitness:        %.2f\n", n.stats.Champion.champ.fitness)
+	fmt.Printf("Node count:        %-3d\n", len(n.stats.Champion.champ.nodes))
+	fmt.Printf("Gene count:        %-3d\n", len(n.stats.Champion.champ.oinnov))
 	time.Sleep(time.Second)
 	fmt.Printf("\n\n")
 }
