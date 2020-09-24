@@ -293,3 +293,139 @@ func TestPanicCases(t *testing.T) {
 		})
 	}
 }
+
+func TestMutateAddNode(t *testing.T) {
+	var nCount uint64
+	nodeIDGenerator = func() nodeID {
+		nCount++
+		return nodeID(nCount)
+	}
+
+	var gCount uint64
+	innovIDGenerator = func() geneID {
+		gCount++
+		return geneID(gCount)
+	}
+
+	newGene := func(p nodePair, w float64, f activationFunction, innov geneID, disabled bool) *gene {
+		return &gene{
+			innov:    innov,
+			p:        p,
+			weight:   w,
+			disabled: disabled,
+			activate: f,
+		}
+	}
+
+	tests := []struct {
+		name      string
+		conf      *Configuration
+		randVal   int
+		nCount    uint64
+		gCount    uint64
+		nodeCache map[nodePair]genePair
+		genes     []*gene
+		expect    []*gene
+	}{
+		{
+			name: "One inuput one output no cache",
+			conf: &Configuration{
+				Inputs:   1,
+				Outputs:  1,
+				activate: sigmoid,
+			},
+			randVal:   0,
+			nCount:    2,
+			gCount:    1,
+			nodeCache: make(map[nodePair]genePair),
+			genes: []*gene{
+				newGene(nodePair{1, 2}, 1, sigmoid, geneID(1), false),
+			},
+			expect: []*gene{
+				newGene(nodePair{1, 2}, 1, sigmoid, geneID(1), true),
+				newGene(nodePair{1, 3}, 1, sigmoid, geneID(2), false),
+				newGene(nodePair{3, 2}, 1, sigmoid, geneID(3), false),
+			},
+		},
+		{
+			name: "One inuput one output with cache",
+			conf: &Configuration{
+				Inputs:   1,
+				Outputs:  1,
+				activate: sigmoid,
+			},
+			randVal: 0,
+			nCount:  2,
+			gCount:  1,
+			nodeCache: map[nodePair]genePair{
+				nodePair{1, 2}: genePair{
+					newGene(nodePair{1, 3}, 1, sigmoid, geneID(2), false),
+					newGene(nodePair{3, 2}, 1, sigmoid, geneID(3), false),
+				},
+			},
+			genes: []*gene{
+				newGene(nodePair{1, 2}, 1, sigmoid, geneID(1), false),
+			},
+			expect: []*gene{
+				newGene(nodePair{1, 2}, 1, sigmoid, geneID(1), true),
+				newGene(nodePair{1, 3}, 1, sigmoid, geneID(2), false),
+				newGene(nodePair{3, 2}, 1, sigmoid, geneID(3), false),
+			},
+		},
+		{
+			name: "Two inputs two outputs no cache",
+			conf: &Configuration{
+				Inputs:   2,
+				Outputs:  2,
+				activate: sigmoid,
+			},
+			randVal:   0,
+			nCount:    4,
+			gCount:    4,
+			nodeCache: make(map[nodePair]genePair),
+			genes: []*gene{
+				newGene(nodePair{1, 3}, 1, sigmoid, geneID(1), false),
+				newGene(nodePair{1, 4}, 1, sigmoid, geneID(2), false),
+				newGene(nodePair{2, 3}, 1, sigmoid, geneID(3), false),
+				newGene(nodePair{2, 4}, 1, sigmoid, geneID(4), false),
+			},
+			expect: []*gene{
+				newGene(nodePair{1, 3}, 1, sigmoid, geneID(1), true),
+				newGene(nodePair{1, 4}, 1, sigmoid, geneID(2), false),
+				newGene(nodePair{2, 3}, 1, sigmoid, geneID(3), false),
+				newGene(nodePair{2, 4}, 1, sigmoid, geneID(4), false),
+				newGene(nodePair{1, 5}, 1, sigmoid, geneID(5), false),
+				newGene(nodePair{5, 3}, 1, sigmoid, geneID(6), false),
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// Reset node ID counter
+			nCount = test.nCount
+			// Reset gene ID counter
+			gCount = test.gCount
+
+			o := newCleanOrganism(test.conf)
+
+			for _, g := range test.genes {
+				o.nodes[g.p.input] = 0
+				o.nodes[g.p.output] = 0
+				o.add(g)
+			}
+
+			randIntn = func(int) int {
+				return test.randVal
+			}
+
+			o.mutateAddNode(test.nodeCache)
+
+			require.Equal(t, len(test.expect), len(o.oinnov))
+			for i, x := range test.expect {
+				y := o.oinnov[i]
+				require.True(t, x.equalTo(y))
+			}
+		})
+	}
+}

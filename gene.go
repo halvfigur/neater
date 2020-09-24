@@ -33,6 +33,11 @@ type (
 
 		activate activationFunction
 	}
+
+	genePair struct {
+		alpha *gene
+		beta  *gene
+	}
 )
 
 var (
@@ -58,6 +63,13 @@ func newGene(p nodePair, w float64, f activationFunction) *gene {
 }
 
 func (g *gene) copy() *gene {
+	return &gene{
+		innov:    g.innov,
+		p:        g.p,
+		weight:   g.weight,
+		disabled: g.disabled,
+		activate: g.activate,
+	}
 	c := *g
 	return &c
 }

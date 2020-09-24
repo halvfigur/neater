@@ -1,7 +1,6 @@
 package neat
 
 import (
-	"fmt"
 	"math"
 	"sort"
 )
@@ -44,9 +43,15 @@ func (s *species) choseRepresentative() {
 }
 
 func (s *species) mutate() []*organism {
-	// A cache to hold innovations that have already been made in this
+	s.generation++
+
+	// A cache to hold new connection innovations that have already been made
+	// in this generation.
+	connCache := make(map[nodePair]*gene)
+
+	// A cache to hold new node innovations that have already been made in this
 	// generation.
-	cache := make(map[nodePair]*gene)
+	nodeCache := make(map[nodePair]genePair)
 
 	// rejectIdx stores the indices of the organisms that are no longer
 	// compatible with the species after mutation
@@ -62,7 +67,7 @@ func (s *species) mutate() []*organism {
 			continue
 		}
 
-		o.mutate(cache)
+		o.mutate(connCache, nodeCache)
 
 		// If o no longer belongs, mark it as rejected
 		if !s.belongs(o) {
@@ -93,7 +98,6 @@ func (s *species) mutate() []*organism {
 	}
 
 	s.population = population
-	s.generation++
 
 	return rejects
 }
@@ -201,10 +205,8 @@ func (s *species) distance(a, b *organism) float64 {
 // in order of ascending fitness before entering this function.
 func (s *species) mate() {
 	// Let only the top performers survive and mate
-	fmt.Println("Population size before cut off ", len(s.population))
 	topCutOffIndex := int(float64(s.conf.PopulationThreshold) * s.conf.SurvivalThreshold)
 	s.population = s.population[:min(topCutOffIndex, len(s.population))]
-	fmt.Println("Population size after cut off  ", len(s.population))
 
 	n := len(s.population)
 	children := make([]*organism, 0, n*(n+1)/2)
@@ -222,9 +224,7 @@ func (s *species) mate() {
 
 	survivalIdx := min(s.conf.PopulationThreshold, len(s.population))
 
-	fmt.Println("Population size before axing ", len(s.population))
 	s.population = s.population[:survivalIdx]
-	fmt.Println("Population size after axing  ", len(s.population))
 }
 
 func (s *species) recombinate(a, b *organism) *organism {
@@ -242,20 +242,20 @@ func (s *species) recombinate(a, b *organism) *organism {
 
 	// Copy genes and hidden nodes
 	for i < len(a.oinnov) && j < len(b.oinnov) {
-		var g gene
+		var g *gene
 
 		if a.oinnov[i].innov == b.oinnov[j].innov {
 			// ´a´ has the better performance so copy the gene from from `a`
-			g = *a.oinnov[i]
+			g = a.oinnov[i]
 			i = min(i+1, len(a.oinnov))
 			j = min(j+1, len(b.oinnov))
 		} else if a.oinnov[i].innov < b.oinnov[j].innov {
 			// `a` has a gene not present in ´b´
-			g = *a.oinnov[i]
+			g = a.oinnov[i]
 			i = min(i+1, len(a.oinnov))
 		} else {
 			// `b` has a gene not present in ´a´
-			g = *b.oinnov[j]
+			g = b.oinnov[j]
 			j = min(j+1, len(b.oinnov))
 		}
 
@@ -263,23 +263,23 @@ func (s *species) recombinate(a, b *organism) *organism {
 		// TODO: figure out if we need a function for creating nodes.
 		o.nodes[g.p.input] = 0
 		o.nodes[g.p.output] = 0
-		o.add(&g)
+		o.add(g)
 	}
 
 	// Handle trailing genes (if any)
 	for ; i < len(a.oinnov); i++ {
-		g := *a.oinnov[i]
+		g := a.oinnov[i]
 		o.nodes[g.p.input] = 0
 		o.nodes[g.p.output] = 0
-		o.add(&g)
+		o.add(g)
 	}
 
 	// Handle trailing genes (if any)
 	for ; j < len(b.oinnov); j++ {
-		g := *b.oinnov[j]
+		g := b.oinnov[j]
 		o.nodes[g.p.input] = 0
 		o.nodes[g.p.output] = 0
-		o.add(&g)
+		o.add(g)
 	}
 
 	return o
