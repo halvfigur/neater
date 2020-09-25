@@ -14,17 +14,17 @@ type (
 		conf *Configuration
 
 		// input holds input node IDs
-		inputs []nodeID
+		inputs []nodeID `json:"inputs_nodes"`
 		// output holds output node IDs
-		outputs []nodeID
+		outputs []nodeID `json:"output_nodes"`
 		// oinnov holds the gene innovation order
-		oinnov []*gene
+		oinnov []*gene `json:"innovation_order"`
 		// oeval holds the gene evalulauation order
-		oeval []*gene
+		oeval []*gene `json:"evalutaion_order"`
 		// nodes holds all the nodes values
 		nodes map[nodeID]float64
 		// connections holds all the input to output connections
-		connections map[nodeID]map[nodeID]bool
+		connections map[nodeID]map[nodeID]bool `json:"connection_map"`
 
 		// strategy determines how to connect the nodes during the initial
 		// setup
@@ -394,14 +394,22 @@ func (o *organism) getRandUnconnectedNodePair() (nodePair, bool) {
 }
 
 func (o *organism) mutateWeight() {
-	for {
-		i := randIntn(len(o.oinnov))
-		g := o.oinnov[i]
-		if !g.disabled {
-			g.weight *= 2 * (rand.Float64() - 0.5) * o.conf.WeightMutationPower
-			break
-		}
+	i := randIntn(len(o.oinnov))
+	g := o.oinnov[i]
+
+	if g.disabled {
+		// Try again next time
+		return
 	}
+
+	w := rand.NormFloat64() * o.conf.WeightMutationStandardDeviation
+	if w < -o.conf.WeightMutationPower {
+		w = -o.conf.WeightMutationPower
+	} else if w > o.conf.WeightMutationPower {
+		w = o.conf.WeightMutationPower
+	}
+
+	g.weight += w
 }
 
 func (o *organism) mutateConnectedNodes(connCache map[nodePair]*gene) {

@@ -20,16 +20,16 @@ type (
 	activationFunction func(float64) float64
 
 	nodePair struct {
-		input  nodeID
-		output nodeID
+		input  nodeID `json:"input_node"`
+		output nodeID `json:"output_node"`
 	}
 
 	gene struct {
-		innov geneID
+		innov geneID `json:"innovation"`
 
-		p        nodePair
-		weight   float64
-		disabled bool
+		p        nodePair `json:"node_pair"`
+		weight   float64  `json:"weight"`
+		disabled bool     `json:"disabled"`
 
 		activate activationFunction
 	}

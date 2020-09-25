@@ -13,7 +13,11 @@ type (
 		// WeightMutationProb is the probability that a given gene's weight is mutated
 		WeightMutationProb float64
 
+		// WeightMutationPower is the threshold for weight mutations in one mutation
 		WeightMutationPower float64
+
+		// WeightMutationStandardDeviation
+		WeightMutationStandardDeviation float64
 
 		// AddNodeMutationProb is the probability that a gene is disabled and a new Node is inserted
 		AddNodeMutationProb float64
@@ -60,6 +64,12 @@ type (
 
 		// ActivationFunction
 		ActivationFunction string
+
+		// NormalizeFitness
+		NormalizeFitness bool
+
+		// FitnessNormalizationThreshold
+		FitnessNormalizationThreshold int
 
 		activate activationFunction
 	}

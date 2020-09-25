@@ -142,7 +142,7 @@ func (s *species) normalize() {
 }
 
 func (s *species) belongs(o *organism) bool {
-	return s.distance(s.rep, o) < s.conf.CompatibilityThreshold
+	return s.distance(s.rep, o) < s.conf.CompatibilityThreshold+(s.conf.CompatibilityModifier*float64(s.generation-1))
 }
 
 func (s *species) add(o *organism) {
@@ -183,11 +183,13 @@ func (s *species) distance(a, b *organism) float64 {
 	excessGenes += len(b.oinnov) - j - 1
 
 	n := float64(1)
-	largest := float64(max(len(a.oinnov), len(b.oinnov)))
-	if largest > float64(20) {
-		// 'n' normalizes for genome size ('n' can be set to 1
-		// if both genomes are small, i.e., consist of fewer than 20 genes)
-		n = largest
+	if s.conf.NormalizeFitness {
+		largest := float64(max(len(a.oinnov), len(b.oinnov)))
+		if largest > float64(s.conf.FitnessNormalizationThreshold) {
+			// 'n' normalizes for genome size ('n' can be set to 1
+			// if both genomes are small, i.e., consist of fewer than 20 genes)
+			n = largest
+		}
 	}
 
 	// Shorten the names so that the calculation is readable
@@ -204,9 +206,14 @@ func (s *species) distance(a, b *organism) float64 {
 // mate mates the top species of the population, the organisms must be sorted
 // in order of ascending fitness before entering this function.
 func (s *species) mate() {
-	// Let only the top performers survive and mate
-	topCutOffIndex := int(float64(s.conf.PopulationThreshold) * s.conf.SurvivalThreshold)
-	s.population = s.population[:min(topCutOffIndex, len(s.population))]
+	/*
+		// Let only the top performers survive and mate
+		topCutOffIndex := int(float64(s.conf.PopulationThreshold) * s.conf.SurvivalThreshold)
+		s.population = s.population[:min(topCutOffIndex, len(s.population))]
+	*/
+
+	cutOffIdx := min(len(s.population), int(math.Sqrt(float64(s.conf.PopulationThreshold+4))))
+	s.population = s.population[:cutOffIdx]
 
 	n := len(s.population)
 	children := make([]*organism, 0, n*(n+1)/2)

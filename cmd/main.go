@@ -1,9 +1,13 @@
 package main
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"neat"
+	"os"
+	"os/signal"
 )
 
 func main() {
@@ -20,15 +24,19 @@ func main() {
 		Outputs: tf.Outputs(),
 
 		// WeightMutationProb is the probability that a given gene's weight is mutated
-		WeightMutationProb: 0.5,
+		WeightMutationProb: 0.1,
 
+		// WeightMutationPower is the threshold for wait mutations in one mutation
 		WeightMutationPower: 2.5,
 
+		// WeightMutationStandardDeviation
+		WeightMutationStandardDeviation: 0.5,
+
 		// AddNodeMutationProb is the probability that a gene is disabled and a new Node is inserted
-		AddNodeMutationProb: 0.5,
+		AddNodeMutationProb: 0.1,
 
 		// ConnectNodesMutationProb is the probability that a new gene connecting two nodes hkk
-		ConnectNodesMutationProb: 0.5,
+		ConnectNodesMutationProb: 0.1,
 
 		// PopulationThreshold is the maximum size of a species population
 		PopulationThreshold: 32,
@@ -52,7 +60,7 @@ func main() {
 		CompatibilityThreshold: 6.0,
 
 		// CompatibilityModifier
-		CompatibilityModifier: 0.3,
+		CompatibilityModifier: 0.01,
 
 		// DropOffAge
 		DropOffAge: 15,
@@ -76,5 +84,26 @@ func main() {
 		log.Fatal(err)
 	}
 
-	n.Train(tf, cf)
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc, os.Interrupt)
+
+	for {
+		select {
+		case <-sigc:
+			if n.Champion() != nil {
+				blob, err := json.MarshalIndent(n.Champion(), "", "   ")
+				if err != nil {
+					panic(err)
+				}
+
+				if err := ioutil.WriteFile("champion.json", blob, 0666); err != nil {
+					panic(err)
+				}
+
+				return
+			}
+		default:
+			n.Train(tf, cf)
+		}
+	}
 }

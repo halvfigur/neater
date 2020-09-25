@@ -53,6 +53,12 @@ func (c *XORFitnessCalculator) AddResult(input, output []float64) {
 	i0, i1 := input[0], input[1]
 	o := output[0]
 
+	if o < 0.5 {
+		o = 0
+	} else {
+		o = 1
+	}
+
 	if i0 == 0 && i1 == 0 {
 		c.aggrErr += o * o
 		return
