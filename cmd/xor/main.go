@@ -1,11 +1,9 @@
 package main
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"log"
 	"math/rand"
-	"neat"
+	"neater"
 	"os"
 	"os/signal"
 )
@@ -13,10 +11,10 @@ import (
 func main() {
 
 	rand.Seed(0)
-	tf := neat.NewXORTrainerFactory()
-	cf := neat.NewXORFitnessCalculatorFactory()
+	tf := neater.NewXORTrainerFactory()
+	cf := neater.NewXORFitnessCalculatorFactory()
 
-	c := &neat.Configuration{
+	c := &neater.Configuration{
 		// Inputs is the number of inputs
 		Inputs: tf.Inputs(),
 
@@ -76,10 +74,10 @@ func main() {
 		InitialPopulationSize: 8,
 
 		// ActivationFunction
-		ActivationFunction: neat.ActivateSigmoid,
+		ActivationFunction: neater.ActivateSigmoid,
 	}
 
-	n, err := neat.NewNeat(c)
+	n, err := neater.NewNeat(c)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -91,15 +89,6 @@ func main() {
 		select {
 		case <-sigc:
 			if n.Champion() != nil {
-				blob, err := json.MarshalIndent(n.Champion(), "", "   ")
-				if err != nil {
-					panic(err)
-				}
-
-				if err := ioutil.WriteFile("champion.json", blob, 0666); err != nil {
-					panic(err)
-				}
-
 				return
 			}
 		default:

@@ -1,4 +1,4 @@
-package neat
+package neater
 
 func genCleanOrganism(inputs, outputs, nodes []nodeID, genes []*gene) *organism {
 	o := newOrganism(&Configuration{

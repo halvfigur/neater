@@ -1,4 +1,4 @@
-package neat
+package neater
 
 import (
 	"fmt"
@@ -14,17 +14,17 @@ type (
 		conf *Configuration
 
 		// input holds input node IDs
-		inputs []nodeID `json:"inputs_nodes"`
+		inputs []nodeID
 		// output holds output node IDs
-		outputs []nodeID `json:"output_nodes"`
+		outputs []nodeID
 		// oinnov holds the gene innovation order
-		oinnov []*gene `json:"innovation_order"`
+		oinnov []*gene
 		// oeval holds the gene evalulauation order
-		oeval []*gene `json:"evalutaion_order"`
+		oeval []*gene
 		// nodes holds all the nodes values
 		nodes map[nodeID]float64
 		// connections holds all the input to output connections
-		connections map[nodeID]map[nodeID]bool `json:"connection_map"`
+		connections map[nodeID]map[nodeID]bool
 
 		// strategy determines how to connect the nodes during the initial
 		// setup

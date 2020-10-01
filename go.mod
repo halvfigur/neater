@@ -1,4 +1,4 @@
-module neat
+module neater
 
 go 1.14
 

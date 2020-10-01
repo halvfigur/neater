@@ -1,4 +1,4 @@
-package neat
+package neater
 
 import (
 	"fmt"
@@ -20,16 +20,16 @@ type (
 	activationFunction func(float64) float64
 
 	nodePair struct {
-		input  nodeID `json:"input_node"`
-		output nodeID `json:"output_node"`
+		input  nodeID
+		output nodeID
 	}
 
 	gene struct {
-		innov geneID `json:"innovation"`
+		innov geneID
 
-		p        nodePair `json:"node_pair"`
-		weight   float64  `json:"weight"`
-		disabled bool     `json:"disabled"`
+		p        nodePair
+		weight   float64
+		disabled bool
 
 		activate activationFunction
 	}

@@ -1,4 +1,4 @@
-package neat
+package neater
 
 type (
 	ActivationFunction string
