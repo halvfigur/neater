@@ -11,8 +11,8 @@ import (
 func main() {
 
 	rand.Seed(0)
-	tf := neater.NewXORTrainerFactory()
-	cf := neater.NewXORFitnessCalculatorFactory()
+	tf := NewXORTrainerFactory()
+	cf := NewXORFitnessCalculatorFactory()
 
 	c := &neater.Configuration{
 		// Inputs is the number of inputs
