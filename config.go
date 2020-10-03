@@ -31,6 +31,9 @@ type (
 		// Recurrent controls whether recurrent connections are allowed
 		Recurrent bool
 
+		// RecurrentConnProb the probability that a new connection is recurrent
+		RecurrentConnProb float64
+
 		// MaxPopulationSize is the maximum number of different species
 		MaxPopulationSize int
 

@@ -24,7 +24,7 @@ type (
 		// nodes holds all the nodes values
 		nodes map[nodeID]float64
 		// connections holds all the input to output connections
-		connections map[nodeID]map[nodeID]bool
+		//connections map[nodeID]map[nodeID]bool
 
 		// strategy determines how to connect the nodes during the initial
 		// setup
@@ -57,14 +57,14 @@ func newCleanOrganism(conf *Configuration) *organism {
 
 	nNodes := conf.Inputs * conf.Outputs
 	return &organism{
-		conf:        conf,
-		inputs:      make([]nodeID, conf.Inputs),
-		outputs:     make([]nodeID, conf.Outputs),
-		oeval:       make([]*gene, 0, nNodes),
-		oinnov:      make([]*gene, 0, nNodes),
-		nodes:       make(map[nodeID]float64, nNodes),
-		connections: make(map[nodeID]map[nodeID]bool),
-		strategy:    defaultConnectStrategy,
+		conf:    conf,
+		inputs:  make([]nodeID, conf.Inputs),
+		outputs: make([]nodeID, conf.Outputs),
+		oeval:   make([]*gene, 0, nNodes),
+		oinnov:  make([]*gene, 0, nNodes),
+		nodes:   make(map[nodeID]float64, nNodes),
+		//connections: make(map[nodeID]map[nodeID]bool),
+		strategy: defaultConnectStrategy,
 	}
 }
 
@@ -113,14 +113,16 @@ func (o *organism) copy() *organism {
 		x.nodes[k] = v
 	}
 
-	x.connections = make(map[nodeID]map[nodeID]bool)
-	for i, m := range o.connections {
-		outputSet := make(map[nodeID]bool)
-		for o := range m {
-			outputSet[o] = true
+	/*
+		x.connections = make(map[nodeID]map[nodeID]bool)
+		for i, m := range o.connections {
+			outputSet := make(map[nodeID]bool)
+			for o := range m {
+				outputSet[o] = true
+			}
+			x.connections[i] = outputSet
 		}
-		x.connections[i] = outputSet
-	}
+	*/
 
 	x.strategy = o.strategy
 
@@ -161,6 +163,7 @@ func (o *organism) connectFlow() {
 	}
 }
 
+/*
 func (o *organism) connect(p nodePair) {
 	if o.connections[p.input] == nil {
 		o.connections[p.input] = make(map[nodeID]bool)
@@ -180,6 +183,7 @@ func (o *organism) connected(p nodePair) bool {
 
 	return o.connections[p.input][p.output]
 }
+*/
 
 func (o *organism) add(g *gene) {
 	if _, ok := o.nodes[g.p.input]; !ok {
@@ -193,7 +197,7 @@ func (o *organism) add(g *gene) {
 	g = g.copy()
 
 	// Make note that the nodes are connected
-	o.connect(g.p)
+	//o.connect(g.p)
 
 	// Add gene at end of innovation order
 	o.oinnov = append(o.oinnov, g)
@@ -331,7 +335,38 @@ func (o *organism) Eval(input []float64) []float64 {
 
 // Mutation things
 
-func (o *organism) getRandUnconnectedNodePair() (nodePair, bool) {
+func (o *organism) getRecurrentNodePair() nodePair {
+	firstIdx := 1 + randIntn(len(o.oeval)-1)
+	lastIdx := randIntn(firstIdx)
+
+	input := o.oeval[firstIdx].p.input
+	output := o.oeval[lastIdx].p.output
+
+	return nodePair{input, output}
+}
+
+func (o *organism) getNodePair() nodePair {
+	if o.conf.Recurrent && randFloat64() < o.conf.RecurrentConnProb {
+		return o.getRecurrentNodePair()
+	}
+
+	// Select the nodes from the evaluation order such that the first node
+	// appears before the last, this ensures that the resulting connection is
+	// not recurrent.
+
+	// If length is N then firstIdx should be in the range [0, (N - 2))
+	firstIdx := randIntn(len(o.oeval) - 1)
+	// The last index should be in the range (firstIdx, N-1]
+	lastIdx := firstIdx + 1 + randIntn(len(o.oeval)-firstIdx-1)
+
+	input := o.oeval[firstIdx].p.input
+	output := o.oeval[lastIdx].p.output
+
+	return nodePair{input, output}
+}
+
+/*
+func (o *organism) _getNodePair() (nodePair, bool) {
 
 	// Create a shallow copy of all the nodes
 	nodes := make(map[nodeID]float64)
@@ -392,6 +427,7 @@ func (o *organism) getRandUnconnectedNodePair() (nodePair, bool) {
 
 	return nodePair{}, false
 }
+*/
 
 func (o *organism) mutateWeight() {
 	i := randIntn(len(o.oinnov))
@@ -413,11 +449,7 @@ func (o *organism) mutateWeight() {
 }
 
 func (o *organism) mutateConnectedNodes(connCache map[nodePair]*gene) {
-	p, ok := o.getRandUnconnectedNodePair()
-	if !ok {
-		// The nodes are fully connected, nothing to do
-		return
-	}
+	p := o.getNodePair()
 
 	if g, ok := connCache[p]; ok {
 		// This innovation has already been made somewhere else
