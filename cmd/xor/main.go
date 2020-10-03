@@ -88,7 +88,14 @@ func main() {
 	for {
 		select {
 		case <-sigc:
-			if n.Champion() != nil {
+			f, err := os.Create("xor.dot")
+			if err != nil {
+				panic(err)
+			}
+			defer f.Close()
+
+			if o := n.Champion(); o != nil {
+				neater.Graph(o, f)
 				return
 			}
 		default:
