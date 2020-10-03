@@ -68,24 +68,22 @@ func newCleanOrganism(conf *Configuration) *organism {
 	}
 }
 
-func newOrganism(conf *Configuration, opts ...organismOpt) *organism {
+func newOrganism(conf *Configuration, inputs, outputs []nodeID, opts ...organismOpt) *organism {
 	o := newCleanOrganism(conf)
 
 	for _, opt := range opts {
 		opt(o)
 	}
 
-	for i := range o.inputs {
-		id := nodeIDGenerator()
-
-		o.inputs[i] = id
+	o.inputs = make([]nodeID, len(inputs))
+	copy(o.inputs, inputs)
+	for _, id := range o.inputs {
 		o.nodes[id] = 0
 	}
 
-	for i := range o.outputs {
-		id := nodeIDGenerator()
-
-		o.outputs[i] = id
+	o.outputs = make([]nodeID, len(outputs))
+	copy(o.outputs, outputs)
+	for _, id := range o.outputs {
 		o.nodes[id] = 0
 	}
 
@@ -448,7 +446,7 @@ func (o *organism) mutateWeight() {
 	g.weight += w
 }
 
-func (o *organism) mutateConnectedNodes(connCache map[nodePair]*gene) {
+func (o *organism) mutateConnectNodes(connCache map[nodePair]*gene) {
 	p := o.getNodePair()
 
 	if g, ok := connCache[p]; ok {
@@ -472,12 +470,12 @@ func (o *organism) mutateAddNode(nodeCache map[nodePair]genePair) {
 		return
 	}
 
-	pair, ok := nodeCache[g.p]
+	p, ok := nodeCache[g.p]
 	if ok {
 		// This innovation has already been made somewhere else
-		o.nodes[pair.alpha.p.output] = 0
-		o.add(pair.alpha)
-		o.add(pair.beta)
+		o.nodes[p.alpha.p.output] = 0
+		o.add(p.alpha)
+		o.add(p.beta)
 		g.disabled = true
 
 		return
@@ -502,12 +500,40 @@ func (o *organism) mutate(connCache map[nodePair]*gene, nodeCache map[nodePair]g
 	}
 
 	if randFloat64() < o.conf.ConnectNodesMutationProb {
-		o.mutateConnectedNodes(connCache)
+		o.mutateConnectNodes(connCache)
 	}
 
 	if randFloat64() < o.conf.AddNodeMutationProb {
 		o.mutateAddNode(nodeCache)
 	}
+}
+
+func (o *organism) isDisjoint() bool {
+	isIn := func(n nodeID, ns []nodeID) bool {
+		for _, x := range ns {
+			if n == x {
+				return true
+			}
+		}
+		return false
+	}
+
+	nodes := make(map[nodeID]bool)
+	for id := range o.nodes {
+		nodes[id] = false
+	}
+
+	for _, g := range o.oinnov {
+		nodes[g.p.output] = true
+	}
+
+	for n, v := range nodes {
+		if !v && !isIn(n, o.inputs) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (o *organism) String() string {

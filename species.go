@@ -22,9 +22,9 @@ func newCleanSpecies(c *Configuration) *species {
 	}
 }
 
-func newSpecies(c *Configuration) *species {
+func newSpecies(c *Configuration, inputs, outputs []nodeID) *species {
 	s := newCleanSpecies(c)
-	o := newOrganism(c)
+	o := newOrganism(c, inputs, outputs)
 	s.population[0] = o
 
 	for i := 1; i < len(s.population); i++ {

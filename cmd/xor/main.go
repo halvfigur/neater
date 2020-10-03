@@ -100,6 +100,7 @@ func main() {
 			}
 		default:
 			n.Train(tf, cf)
+			//time.Sleep(time.Second)
 		}
 	}
 }

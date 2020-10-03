@@ -16,6 +16,8 @@ type (
 	Neat struct {
 		conf    *Configuration
 		species []*species
+		inputs  []nodeID
+		outputs []nodeID
 		stats   Stats
 	}
 )
@@ -35,7 +37,16 @@ func NewNeat(c *Configuration) (*Neat, error) {
 		species: make([]*species, 0, c.MaxPopulationSize),
 	}
 
-	n.species = append(n.species, newSpecies(n.conf))
+	n.inputs = make([]nodeID, n.conf.Inputs)
+	for i := range n.inputs {
+		n.inputs[i] = nodeIDGenerator()
+	}
+	n.outputs = make([]nodeID, n.conf.Outputs)
+	for i := range n.outputs {
+		n.outputs[i] = nodeIDGenerator()
+	}
+
+	n.species = append(n.species, newSpecies(n.conf, n.inputs, n.outputs))
 
 	return n, nil
 }
@@ -85,7 +96,7 @@ func (n *Neat) Train(tf TrainerFactory, cf FitnessCalculatorFactory) float64 {
 		}
 
 		// Couldn't find a suitable species for organism, time to create a new species
-		s := newSpecies(n.conf)
+		s := newSpecies(n.conf, n.inputs, n.outputs)
 		s.add(o)
 		n.species = append(n.species, s)
 	}

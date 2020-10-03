@@ -7,7 +7,6 @@ import (
 )
 
 func Graph(o *organism, w io.Writer) error {
-
 	isIn := func(n nodeID, ns []nodeID) bool {
 		for _, x := range ns {
 			if n == x {
