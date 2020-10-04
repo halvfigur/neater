@@ -19,6 +19,11 @@ type (
 	}
 )
 
+const (
+	biasID     nodeID  = 0
+	biasOutput float64 = 1.0
+)
+
 var (
 	nodeIDCount     = uint64(0)
 	nodeIDGenerator = nextNodeID

@@ -21,10 +21,13 @@ type (
 		oinnov []*gene
 		// oeval holds the gene evalulauation order
 		oeval []*gene
+		// obias holds all bias connections
+		obias []*gene
 		// nodes holds all the nodes values
 		nodes map[nodeID]float64
-		// connections holds all the input to output connections
-		//connections map[nodeID]map[nodeID]bool
+
+		// terminalNodes the set of input and output nodeIDs
+		terminalNodes map[nodeID]bool
 
 		// strategy determines how to connect the nodes during the initial
 		// setup
@@ -55,16 +58,18 @@ func newCleanOrganism(conf *Configuration) *organism {
 		panic("Number of outputs must be greater than 0")
 	}
 
-	nNodes := conf.Inputs * conf.Outputs
+	// Total number of initial nodes is #inputs + #outputs + bias
+	nNodes := conf.Inputs*conf.Outputs + 1
 	return &organism{
-		conf:    conf,
-		inputs:  make([]nodeID, conf.Inputs),
-		outputs: make([]nodeID, conf.Outputs),
-		oeval:   make([]*gene, 0, nNodes),
-		oinnov:  make([]*gene, 0, nNodes),
-		nodes:   make(map[nodeID]float64, nNodes),
-		//connections: make(map[nodeID]map[nodeID]bool),
-		strategy: defaultConnectStrategy,
+		conf:          conf,
+		inputs:        make([]nodeID, conf.Inputs),
+		outputs:       make([]nodeID, conf.Outputs),
+		oinnov:        make([]*gene, 0, nNodes),
+		oeval:         make([]*gene, 0, nNodes),
+		obias:         make([]*gene, 0, conf.Outputs),
+		nodes:         make(map[nodeID]float64, nNodes),
+		terminalNodes: make(map[nodeID]bool),
+		strategy:      defaultConnectStrategy,
 	}
 }
 
@@ -78,13 +83,16 @@ func newOrganism(conf *Configuration, inputs, outputs []nodeID, opts ...organism
 	o.inputs = make([]nodeID, len(inputs))
 	copy(o.inputs, inputs)
 	for _, id := range o.inputs {
+		// The input nodes will not be biased so don't call addNode
 		o.nodes[id] = 0
+		o.terminalNodes[id] = true
 	}
 
 	o.outputs = make([]nodeID, len(outputs))
 	copy(o.outputs, outputs)
 	for _, id := range o.outputs {
 		o.nodes[id] = 0
+		o.terminalNodes[id] = true
 	}
 
 	o.connectTerminals()
@@ -106,21 +114,19 @@ func (o *organism) copy() *organism {
 		x.oeval = append(x.oeval, g.copy())
 	}
 
+	for _, g := range o.obias {
+		x.obias = append(x.obias, g.copy())
+	}
+
 	x.nodes = make(map[nodeID]float64, len(o.nodes))
 	for k, v := range o.nodes {
 		x.nodes[k] = v
 	}
 
-	/*
-		x.connections = make(map[nodeID]map[nodeID]bool)
-		for i, m := range o.connections {
-			outputSet := make(map[nodeID]bool)
-			for o := range m {
-				outputSet[o] = true
-			}
-			x.connections[i] = outputSet
-		}
-	*/
+	x.terminalNodes = make(map[nodeID]bool, len(o.terminalNodes))
+	for k, v := range o.terminalNodes {
+		x.terminalNodes[k] = v
+	}
 
 	x.strategy = o.strategy
 
@@ -141,10 +147,11 @@ func (o *organism) connectTerminals() {
 
 // connectFull connects each input node to every output node.
 func (o *organism) connectFull() {
+	// Connect input to putput
 	for _, in := range o.inputs {
 		for _, out := range o.outputs {
 			g := newGene(nodePair{in, out}, defaultWeight, o.conf.activate)
-			o.add(g)
+			o.addGene(g)
 		}
 	}
 }
@@ -157,33 +164,36 @@ func (o *organism) connectFlow() {
 		output := o.outputs[i%len(o.outputs)]
 
 		g := newGene(nodePair{input, output}, defaultWeight, o.conf.activate)
-		o.add(g)
+		o.addGene(g)
 	}
 }
 
-/*
-func (o *organism) connect(p nodePair) {
-	if o.connections[p.input] == nil {
-		o.connections[p.input] = make(map[nodeID]bool)
+func (o *organism) addBias(id nodeID) {
+	// Disallow adding bias to terminal nodes
+	if o.terminalNodes[id] {
+		return
 	}
-	o.connections[p.input][p.output] = true
 
-	if o.connections[p.output] == nil {
-		o.connections[p.output] = make(map[nodeID]bool)
+	p := nodePair{biasID, id}
+
+	// Check that the node isn't already biased
+	for _, g := range o.obias {
+		if g.p == p {
+			return
+		}
 	}
-	o.connections[p.output][p.input] = true
+
+	//g := newGene(p, defaultWeight, o.conf.activate)
+	g := newGene(p, 0.05*defaultWeight, o.conf.activate)
+	o.obias = append(o.obias, g)
 }
 
-func (o *organism) connected(p nodePair) bool {
-	if o.connections[p.input] == nil {
-		return false
-	}
-
-	return o.connections[p.input][p.output]
+func (o *organism) addNode(id nodeID) {
+	o.nodes[id] = 0
+	o.addBias(id)
 }
-*/
 
-func (o *organism) add(g *gene) {
+func (o *organism) addGene(g *gene) {
 	if _, ok := o.nodes[g.p.input]; !ok {
 		panic(fmt.Sprintf("node not found %d", g.p.input))
 	}
@@ -293,23 +303,21 @@ func withConnectStrategy(s connectStrategy) organismOpt {
 	}
 }
 
-func (o *organism) clear() {
-	for id := range o.nodes {
-		o.nodes[id] = 0
-	}
-}
-
 func (o *organism) Eval(input []float64) []float64 {
 	if len(input) != len(o.inputs) {
 		panic("Length of input vector must equal number of input nodes")
 	}
 
-	o.clear()
-
 	for i, id := range o.inputs {
 		o.nodes[id] = input[i]
 	}
 
+	// Initialize each node with the corresponding weighted bias value
+	for _, g := range o.obias {
+		o.nodes[g.p.output] = g.activate(biasOutput) * g.weight
+	}
+
+	// Iterate over the gene evaluation order and update the nodes accordingly
 	for _, g := range o.oeval {
 		if g.disabled {
 			// Skip disabled genes
@@ -323,6 +331,7 @@ func (o *organism) Eval(input []float64) []float64 {
 		o.nodes[g.p.output] += v
 	}
 
+	// Copy the output nodes to the output slice
 	output := make([]float64, len(o.outputs))
 	for i, id := range o.outputs {
 		output[i] = o.nodes[id]
@@ -348,14 +357,16 @@ func (o *organism) getNodePair() nodePair {
 		return o.getRecurrentNodePair()
 	}
 
-	// Select the nodes from the evaluation order such that the first node
-	// appears before the last, this ensures that the resulting connection is
-	// not recurrent.
+	// Randomly select two genes, ´first´ and ´last´, from the gene evaluation
+	// order such that ´first´ occurs before ´last´. Choose the input node from
+	// ´first´ and the output node from ´last´. This ensures that the
+	// connection is not recurrent.
 
-	// If length is N then firstIdx should be in the range [0, (N - 2))
-	firstIdx := randIntn(len(o.oeval) - 1)
+	// If length is N then firstIdx should be in the range [0, (N - 1))
+	n := len(o.oeval)
+	firstIdx := randIntn(n - 1)
 	// The last index should be in the range (firstIdx, N-1]
-	lastIdx := firstIdx + 1 + randIntn(len(o.oeval)-firstIdx-1)
+	lastIdx := firstIdx + 1 + randIntn(n-(firstIdx+1))
 
 	input := o.oeval[firstIdx].p.input
 	output := o.oeval[lastIdx].p.output
@@ -363,73 +374,16 @@ func (o *organism) getNodePair() nodePair {
 	return nodePair{input, output}
 }
 
-/*
-func (o *organism) _getNodePair() (nodePair, bool) {
-
-	// Create a shallow copy of all the nodes
-	nodes := make(map[nodeID]float64)
-	for k := range o.nodes {
-		nodes[k] = 0
-	}
-
-	for len(nodes) > 0 {
-		var a nodeID
-
-		// Pick a node at random
-		for a = range nodes {
-			break
-		}
-
-		delete(nodes, a)
-
-		// Iterate over the remaining nodes
-		for b := range nodes {
-
-			p := nodePair{a, b}
-
-			if o.connected(p) {
-				continue
-			}
-
-			if o.conf.Recurrent {
-				return p, true
-			}
-
-			// If ´a´ should connect to ´b´, then the last gene that outputs to
-			// a must appear before the first node that takes input from ´b´ in
-			// the evaluation order.
-
-			// Find the last index of the gene that outputs to 'a'
-			outputDep := -1
-
-			// Find the first index of the gene that taked input from 'b'
-			inputDep := -1
-
-			for i, g := range o.oeval {
-				if g.p.output == a {
-					outputDep = i
-				}
-
-				if inputDep == -1 && g.p.input == b {
-					inputDep = i
-				}
-			}
-
-			//
-			if inputDep < outputDep {
-				continue
-			}
-
-		}
-	}
-
-	return nodePair{}, false
-}
-*/
-
 func (o *organism) mutateWeight() {
-	i := randIntn(len(o.oinnov))
-	g := o.oinnov[i]
+	// Choose a gene at random from either the innovations or from the bias
+	i := randIntn(len(o.oinnov) + len(o.obias))
+
+	var g *gene
+	if i < len(o.oinnov) {
+		g = o.oinnov[i]
+	} else {
+		g = o.obias[i-len(o.oinnov)]
+	}
 
 	if g.disabled {
 		// Try again next time
@@ -437,6 +391,8 @@ func (o *organism) mutateWeight() {
 	}
 
 	w := rand.NormFloat64() * o.conf.WeightMutationStandardDeviation
+	// Clamp the weight modification so that it doesn't exceed the weight
+	// mutation power
 	if w < -o.conf.WeightMutationPower {
 		w = -o.conf.WeightMutationPower
 	} else if w > o.conf.WeightMutationPower {
@@ -449,19 +405,27 @@ func (o *organism) mutateWeight() {
 func (o *organism) mutateConnectNodes(connCache map[nodePair]*gene) {
 	p := o.getNodePair()
 
+	for _, g := range o.oinnov {
+		if g.p == p {
+			// These nodes are already connected, try again next time
+			return
+		}
+	}
+
 	if g, ok := connCache[p]; ok {
 		// This innovation has already been made somewhere else
-		o.add(g)
+		o.addGene(g)
 		return
 	}
 
 	// This is a new innovation
 	g := newGene(p, defaultWeight, o.conf.activate)
 	connCache[p] = g
-	o.add(g)
+	o.addGene(g)
 }
 
 func (o *organism) mutateAddNode(nodeCache map[nodePair]genePair) {
+	// When adding a new node don't consider genes involving the bias node
 	i := randIntn(len(o.oinnov))
 	g := o.oinnov[i]
 
@@ -474,23 +438,22 @@ func (o *organism) mutateAddNode(nodeCache map[nodePair]genePair) {
 	if ok {
 		// This innovation has already been made somewhere else
 		o.nodes[p.alpha.p.output] = 0
-		o.add(p.alpha)
-		o.add(p.beta)
+		o.addGene(p.alpha)
+		o.addGene(p.beta)
 		g.disabled = true
 
+		o.addBias(p.alpha.p.output)
 		return
 	}
 
 	id := nodeIDGenerator()
-	o.nodes[id] = 0
+	o.addNode(id)
 
 	alpha := newGene(nodePair{g.p.input, id}, defaultWeight, o.conf.activate)
 	beta := newGene(nodePair{id, g.p.output}, g.weight, o.conf.activate)
 	nodeCache[g.p] = genePair{alpha, beta}
-
-	o.add(alpha)
-	o.add(beta)
-
+	o.addGene(alpha)
+	o.addGene(beta)
 	g.disabled = true
 }
 

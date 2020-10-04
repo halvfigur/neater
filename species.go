@@ -142,7 +142,8 @@ func (s *species) normalize() {
 }
 
 func (s *species) belongs(o *organism) bool {
-	return s.distance(s.rep, o) < s.conf.CompatibilityThreshold+(s.conf.CompatibilityModifier*float64(s.generation-1))
+	modifier := s.conf.CompatibilityModifier * float64(s.generation-1)
+	return s.distance(s.rep, o) < (s.conf.CompatibilityThreshold + modifier)
 }
 
 func (s *species) add(o *organism) {
@@ -244,6 +245,10 @@ func (s *species) recombinate(a, b *organism) *organism {
 	o := newCleanOrganism(a.conf)
 	copy(o.inputs, a.inputs)
 	copy(o.outputs, a.outputs)
+	o.terminalNodes = make(map[nodeID]bool, len(a.terminalNodes))
+	for k, v := range a.terminalNodes {
+		o.terminalNodes[k] = v
+	}
 
 	i, j := 0, 0
 
@@ -266,27 +271,25 @@ func (s *species) recombinate(a, b *organism) *organism {
 			j = min(j+1, len(b.oinnov))
 		}
 
-		// Create the nodes in the target organism if the don't already exist.
-		// TODO: figure out if we need a function for creating nodes.
-		o.nodes[g.p.input] = 0
-		o.nodes[g.p.output] = 0
-		o.add(g)
+		o.addNode(g.p.input)
+		o.addNode(g.p.output)
+		o.addGene(g)
 	}
 
 	// Handle trailing genes (if any)
 	for ; i < len(a.oinnov); i++ {
 		g := a.oinnov[i]
-		o.nodes[g.p.input] = 0
-		o.nodes[g.p.output] = 0
-		o.add(g)
+		o.addNode(g.p.input)
+		o.addNode(g.p.output)
+		o.addGene(g)
 	}
 
 	// Handle trailing genes (if any)
 	for ; j < len(b.oinnov); j++ {
 		g := b.oinnov[j]
-		o.nodes[g.p.input] = 0
-		o.nodes[g.p.output] = 0
-		o.add(g)
+		o.addNode(g.p.input)
+		o.addNode(g.p.output)
+		o.addGene(g)
 	}
 
 	return o
