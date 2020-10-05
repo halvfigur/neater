@@ -3,10 +3,14 @@ package neater
 import (
 	"math"
 	"sort"
+	"sync/atomic"
 )
 
 type (
+	speciesID uint64
+
 	species struct {
+		id         speciesID
 		conf       *Configuration
 		rep        *organism
 		champ      *organism
@@ -15,8 +19,17 @@ type (
 	}
 )
 
+var (
+	speciesCount = uint64(0)
+)
+
+func nextSpeciesID() speciesID {
+	return speciesID(atomic.AddUint64(&speciesCount, 1))
+}
+
 func newCleanSpecies(c *Configuration) *species {
 	return &species{
+		id:         nextSpeciesID(),
 		conf:       c,
 		population: make([]*organism, c.InitialPopulationSize),
 	}
@@ -90,9 +103,11 @@ func (s *species) mutate() []*organism {
 
 	for i, o := range s.population {
 		if len(rejectIdx) > 0 && i == rejectIdx[0] {
+			// Add oranism to the list of rejects
 			rejects = append(rejects, o)
 			rejectIdx = rejectIdx[1:]
 		} else {
+			// Add organism to the remaining population
 			population = append(population, o)
 		}
 	}
@@ -103,8 +118,6 @@ func (s *species) mutate() []*organism {
 }
 
 func (s *species) train(tf TrainerFactory, cf FitnessCalculatorFactory) {
-	s.champ = s.population[0]
-
 	for _, o := range s.population {
 		t := tf.New()
 		c := cf.New()
@@ -114,16 +127,15 @@ func (s *species) train(tf TrainerFactory, cf FitnessCalculatorFactory) {
 		}
 
 		o.fitness = c.CalculateFitness()
-
-		if o.fitness > s.champ.fitness {
-			s.champ = o
-		}
 	}
 
-	// Adjust the population according to the SurvivalThreshold
+	// Sort according to fitness
 	sort.Slice(s.population, func(i, j int) bool {
 		return s.population[i].fitness > s.population[j].fitness
 	})
+
+	// Let the fittest organism represent the camp
+	s.champ = s.population[0]
 
 	// Normalize the species fitness
 	s.normalize()

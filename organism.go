@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+	"sync/atomic"
 )
 
 type (
+	organismID      uint64
 	connectStrategy int
 
 	organism struct {
+		id organismID
+
 		// conf is the global configuration
 		conf *Configuration
 
@@ -40,6 +44,10 @@ type (
 	organismOpt func(*organism)
 )
 
+var (
+	organismCount = uint64(0)
+)
+
 const (
 	connectNone = connectStrategy(iota)
 	connectFull
@@ -48,6 +56,10 @@ const (
 
 	defaultConnectStrategy = connectFull
 )
+
+func nextOrganismID() organismID {
+	return organismID(atomic.AddUint64(&organismCount, 1))
+}
 
 func newCleanOrganism(conf *Configuration) *organism {
 	if conf.Inputs <= 0 {
@@ -61,6 +73,7 @@ func newCleanOrganism(conf *Configuration) *organism {
 	// Total number of initial nodes is #inputs + #outputs + bias
 	nNodes := conf.Inputs*conf.Outputs + 1
 	return &organism{
+		id:            nextOrganismID(),
 		conf:          conf,
 		inputs:        make([]nodeID, conf.Inputs),
 		outputs:       make([]nodeID, conf.Outputs),
