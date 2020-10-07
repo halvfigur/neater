@@ -330,6 +330,11 @@ func (o *organism) Eval(input []float64) []float64 {
 		o.nodes[g.p.output] = g.activate(biasOutput) * g.weight
 	}
 
+	// Clear the output nodes
+	for _, id := range o.outputs {
+		o.nodes[id] = 0
+	}
+
 	// Iterate over the gene evaluation order and update the nodes accordingly
 	for _, g := range o.oeval {
 		if g.disabled {
@@ -388,31 +393,26 @@ func (o *organism) getNodePair() nodePair {
 }
 
 func (o *organism) mutateWeight() {
-	// Choose a gene at random from either the innovations or from the bias
-	i := randIntn(len(o.oinnov) + len(o.obias))
+	for _, g := range o.oinnov {
+		if g.disabled {
+			continue
+		}
 
-	var g *gene
-	if i < len(o.oinnov) {
-		g = o.oinnov[i]
-	} else {
-		g = o.obias[i-len(o.oinnov)]
+		if randFloat64() > o.conf.WeightMutationProb {
+			continue
+		}
+
+		w := rand.NormFloat64() * o.conf.WeightMutationStandardDeviation
+		// Clamp the weight modification so that it doesn't exceed the weight
+		// mutation power
+		if w < -o.conf.WeightMutationPower {
+			w = -o.conf.WeightMutationPower
+		} else if w > o.conf.WeightMutationPower {
+			w = o.conf.WeightMutationPower
+		}
+
+		g.weight += w
 	}
-
-	if g.disabled {
-		// Try again next time
-		return
-	}
-
-	w := rand.NormFloat64() * o.conf.WeightMutationStandardDeviation
-	// Clamp the weight modification so that it doesn't exceed the weight
-	// mutation power
-	if w < -o.conf.WeightMutationPower {
-		w = -o.conf.WeightMutationPower
-	} else if w > o.conf.WeightMutationPower {
-		w = o.conf.WeightMutationPower
-	}
-
-	g.weight += w
 }
 
 func (o *organism) mutateConnectNodes(connCache map[nodePair]*gene) {
@@ -471,9 +471,7 @@ func (o *organism) mutateAddNode(nodeCache map[nodePair]genePair) {
 }
 
 func (o *organism) mutate(connCache map[nodePair]*gene, nodeCache map[nodePair]genePair) {
-	if randFloat64() < o.conf.WeightMutationProb {
-		o.mutateWeight()
-	}
+	o.mutateWeight()
 
 	if randFloat64() < o.conf.ConnectNodesMutationProb {
 		o.mutateConnectNodes(connCache)

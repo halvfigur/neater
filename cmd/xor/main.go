@@ -28,7 +28,7 @@ func main() {
 		ConnectNodesMutationProb: 0.5,
 
 		// WeightMutationProb is the probability that a given gene's weight is mutated
-		WeightMutationProb: 0.5,
+		WeightMutationProb: 0.8,
 
 		// WeightMutationPower is the threshold for wait mutations in one mutation
 		WeightMutationPower: 2.5,
@@ -52,7 +52,7 @@ func main() {
 		ExcessCoefficient: 2.0,
 
 		// WeightDifferenceCoefficient
-		WeightDifferenceCoefficient: 1.0,
+		WeightDifferenceCoefficient: 2.0,
 
 		// CompatibilityThreshold controls how "distant" two genomes can be
 		// before they no longer belong to the same species
@@ -68,7 +68,7 @@ func main() {
 
 		// SurvivalThreshold controls how many percent of the population top
 		// performers survive and reproduce, range (0, 1]
-		SurvivalThreshold: 0.25,
+		SurvivalThreshold: 1.0,
 
 		// MutationPower
 		MutationPower: 2.5,
@@ -78,6 +78,10 @@ func main() {
 
 		// ActivationFunction
 		ActivationFunction: neater.ActivateSigmoid,
+
+		NormalizeDistance: false,
+
+		NormalizaDistanceThreshold: 20,
 	}
 
 	n, err := neater.NewNeat(c)
@@ -97,7 +101,7 @@ func main() {
 			}
 			defer f.Close()
 
-			if o := n.Champion(); o != nil {
+			if o := n.BestOrganism(); o != nil {
 				neater.Graph(o, f)
 				return
 			}

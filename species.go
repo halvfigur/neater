@@ -55,6 +55,46 @@ func (s *species) choseRepresentative() {
 	s.rep = s.population[r]
 }
 
+func (s *species) train(tf TrainerFactory, cf FitnessCalculatorFactory) {
+	for _, o := range s.population {
+		t := tf.New()
+		c := cf.New()
+		for input, ok := t.Next(); ok; input, ok = t.Next() {
+			output := o.Eval(input)
+			c.AddResult(input, output)
+		}
+
+		o.fitness = c.CalculateFitness()
+	}
+
+	// Sort according to fitness
+	sort.Slice(s.population, func(i, j int) bool {
+		return s.population[i].fitness > s.population[j].fitness
+	})
+
+	// Drop the lowest performing organisms
+	threshold := min(s.conf.PopulationThreshold, len(s.population))
+	s.population = s.population[:threshold]
+
+	// Let the fittest organism represent the camp
+	s.champ = s.population[0]
+
+	// Normalize the species fitness
+	s.normalize()
+
+	// Chose a new species representative
+	s.choseRepresentative()
+}
+
+// normalize normalizes the fitness of the population
+func (s *species) normalize() {
+	l := float64(len(s.population))
+
+	for _, o := range s.population {
+		o.fitness /= l
+	}
+}
+
 func (s *species) mutate() []*organism {
 	s.generation++
 
@@ -72,16 +112,20 @@ func (s *species) mutate() []*organism {
 	rejectIdx := make([]int, 0, len(s.population))
 
 	// Iteratate over the population and mutate all organisms except the
-	// champion. Any organism that is no longer compatible with the species
+	// champion.
+	for _, o := range s.population {
+		// Spare the champ from mutation
+		if o != s.champ {
+			o.mutate(connCache, nodeCache)
+		}
+	}
+
+	// Choose a new representative
+	s.choseRepresentative()
+
+	// Any organism that is no longer compatible with the species
 	// representative is marked as rejected
 	for i, o := range s.population {
-		// Spare the champ from mutation
-		if o == s.champ {
-			continue
-		}
-
-		o.mutate(connCache, nodeCache)
-
 		// If o no longer belongs, mark it as rejected
 		if !s.belongs(o) {
 			rejectIdx = append(rejectIdx, i)
@@ -115,42 +159,6 @@ func (s *species) mutate() []*organism {
 	s.population = population
 
 	return rejects
-}
-
-func (s *species) train(tf TrainerFactory, cf FitnessCalculatorFactory) {
-	for _, o := range s.population {
-		t := tf.New()
-		c := cf.New()
-		for input, ok := t.Next(); ok; input, ok = t.Next() {
-			output := o.Eval(input)
-			c.AddResult(input, output)
-		}
-
-		o.fitness = c.CalculateFitness()
-	}
-
-	// Sort according to fitness
-	sort.Slice(s.population, func(i, j int) bool {
-		return s.population[i].fitness > s.population[j].fitness
-	})
-
-	// Let the fittest organism represent the camp
-	s.champ = s.population[0]
-
-	// Normalize the species fitness
-	s.normalize()
-
-	// Chose a new species representative
-	s.choseRepresentative()
-}
-
-// normalize normalizes the fitness of the population
-func (s *species) normalize() {
-	l := float64(len(s.population))
-
-	for _, o := range s.population {
-		o.fitness /= l
-	}
 }
 
 func (s *species) belongs(o *organism) bool {
@@ -196,10 +204,10 @@ func (s *species) distance(a, b *organism) float64 {
 	excessGenes += len(b.oinnov) - j - 1
 
 	n := float64(1)
-	if s.conf.NormalizeFitness {
+	if s.conf.NormalizeDistance {
 		largest := float64(max(len(a.oinnov), len(b.oinnov)))
-		if largest > float64(s.conf.FitnessNormalizationThreshold) {
-			// 'n' normalizes for genome size ('n' can be set to 1
+		if largest > float64(s.conf.NormalizaDistanceThreshold) {
+			// 'n' normalizes for genome size 'n' can be set to 1
 			// if both genomes are small, i.e., consist of fewer than 20 genes)
 			n = largest
 		}
@@ -225,8 +233,10 @@ func (s *species) mate() {
 		s.population = s.population[:min(topCutOffIndex, len(s.population))]
 	*/
 
-	cutOffIdx := min(len(s.population), int(math.Sqrt(float64(s.conf.PopulationThreshold+4))))
-	s.population = s.population[:cutOffIdx]
+	/*
+		cutOffIdx := min(len(s.population), int(math.Sqrt(float64(s.conf.PopulationThreshold+4))))
+		s.population = s.population[:cutOffIdx]
+	*/
 
 	n := len(s.population)
 	children := make([]*organism, 0, n*(n+1)/2)
@@ -241,10 +251,6 @@ func (s *species) mate() {
 	}
 
 	s.population = append(s.population, children...)
-
-	survivalIdx := min(s.conf.PopulationThreshold, len(s.population))
-
-	s.population = s.population[:survivalIdx]
 }
 
 func (s *species) recombinate(a, b *organism) *organism {

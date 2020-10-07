@@ -1,6 +1,8 @@
 package main
 
-import "neater"
+import (
+	"neater"
+)
 
 type (
 	XORTrainer struct {
@@ -44,6 +46,7 @@ func NewXORFitnessCalculator() *XORFitnessCalculator {
 }
 
 func (c *XORFitnessCalculator) AddResult(input, output []float64) {
+
 	if len(input) != 2 {
 		panic("invalid input")
 	}

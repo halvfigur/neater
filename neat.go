@@ -10,7 +10,8 @@ type (
 		Iterations int
 		NbrSpecies int
 
-		Champion *species
+		BestSpecies  *species
+		BestOrganism *organism
 	}
 
 	Neat struct {
@@ -51,8 +52,8 @@ func NewNeat(c *Configuration) (*Neat, error) {
 	return n, nil
 }
 
-func (n *Neat) Champion() *organism {
-	return n.stats.Champion.champ
+func (n *Neat) BestOrganism() *organism {
+	return n.stats.BestOrganism
 }
 
 func (n *Neat) train(tf TrainerFactory, cf FitnessCalculatorFactory) {
@@ -60,11 +61,13 @@ func (n *Neat) train(tf TrainerFactory, cf FitnessCalculatorFactory) {
 		s.train(tf, cf)
 	}
 
+	// Sort the species according to their most fit organism
 	sort.Slice(n.species, func(i, j int) bool {
 		return n.species[i].champ.fitness > n.species[j].champ.fitness
 	})
 
-	n.stats.Champion = n.species[0]
+	n.stats.BestSpecies = n.species[0]
+	n.stats.BestOrganism = n.stats.BestSpecies.champ
 }
 
 func (n *Neat) adjustPopulationSize() {
@@ -74,20 +77,23 @@ func (n *Neat) adjustPopulationSize() {
 	}
 }
 
-func (n *Neat) mutateAndMate() {
-	rejects := make([]*organism, 0, n.conf.MaxPopulationSize)
+func (n *Neat) mutate() []*organism {
+	rejected := make([]*organism, 0, n.conf.MaxPopulationSize)
 
 	// Mutate & mate organisms
 	for _, s := range n.species {
-		rejected := s.mutate()
-		if rejected != nil {
-			rejects = append(rejects, rejected...)
+		rejects := s.mutate()
+		if rejects != nil {
+			rejected = append(rejected, rejects...)
 		}
-
-		s.mate()
 	}
 
-	for _, o := range rejects {
+	return rejected
+
+}
+
+func (n *Neat) handleRejected(rejected []*organism) {
+	for _, o := range rejected {
 		inserted := false
 		for _, s := range n.species {
 			if s.belongs(o) {
@@ -107,6 +113,12 @@ func (n *Neat) mutateAndMate() {
 	}
 }
 
+func (n *Neat) mate() {
+	for _, s := range n.species {
+		s.mate()
+	}
+}
+
 func (n *Neat) Train(tf TrainerFactory, cf FitnessCalculatorFactory) float64 {
 
 	n.stats.Iterations++
@@ -116,11 +128,16 @@ func (n *Neat) Train(tf TrainerFactory, cf FitnessCalculatorFactory) float64 {
 	n.adjustPopulationSize()
 
 	n.stats.NbrSpecies = len(n.species)
+
 	n.printStats()
 
-	n.mutateAndMate()
+	rejected := n.mutate()
 
-	return n.Champion().fitness
+	n.handleRejected(rejected)
+
+	n.mate()
+
+	return n.stats.BestOrganism.fitness
 }
 
 func (n *Neat) printStats() {
@@ -130,14 +147,14 @@ func (n *Neat) printStats() {
 	fmt.Printf("NbrSpecies:      %10d\n", n.stats.NbrSpecies)
 
 	fmt.Printf("---Top Species----\n")
-	fmt.Printf("ID:              %10d\n", n.stats.Champion.id)
-	fmt.Printf("Generation:      %10d\n", n.stats.Champion.generation)
-	fmt.Printf("Population size: %10d\n", len(n.stats.Champion.population))
+	fmt.Printf("ID:              %10d\n", n.stats.BestSpecies.id)
+	fmt.Printf("Generation:      %10d\n", n.stats.BestSpecies.generation)
+	fmt.Printf("Population size: %10d\n", len(n.stats.BestSpecies.population))
 
 	fmt.Printf("---Top Organism---\n")
-	fmt.Printf("ID:              %10d\n", n.stats.Champion.champ.id)
-	fmt.Printf("Fitness:         %10f\n", n.stats.Champion.champ.fitness)
-	fmt.Printf("Node count:      %10d\n", len(n.stats.Champion.champ.nodes))
-	fmt.Printf("Gene count:      %10d\n", len(n.stats.Champion.champ.oinnov))
+	fmt.Printf("ID:              %10d\n", n.stats.BestOrganism.id)
+	fmt.Printf("Fitness:         %10f\n", n.stats.BestOrganism.fitness)
+	fmt.Printf("Node count:      %10d\n", len(n.stats.BestOrganism.nodes))
+	fmt.Printf("Gene count:      %10d\n", len(n.stats.BestOrganism.oinnov))
 	fmt.Printf("\n\n")
 }

@@ -68,11 +68,11 @@ type (
 		// ActivationFunction
 		ActivationFunction string
 
-		// NormalizeFitness
-		NormalizeFitness bool
+		// NormalizeDistance
+		NormalizeDistance bool
 
-		// FitnessNormalizationThreshold
-		FitnessNormalizationThreshold int
+		// NormalizaDistanceThreshold
+		NormalizaDistanceThreshold int
 
 		activate activationFunction
 	}

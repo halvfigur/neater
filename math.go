@@ -34,5 +34,5 @@ func unit(x float64) float64 {
 }
 
 func sigmoid(x float64) float64 {
-	return float64(1) / (float64(1) + math.Exp(5*x))
+	return float64(1) / (float64(1) + math.Exp(10*x))
 }
