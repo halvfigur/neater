@@ -263,14 +263,14 @@ func TestRecombinate(t *testing.T) {
 			for _, g := range test.alphaGenes {
 				a.nodes[g.p.input] = 0
 				a.nodes[g.p.output] = 0
-				a.add(g)
+				a.addGene(g)
 			}
 			a.fitness = test.alphaFitness
 
 			for _, g := range test.betaGenes {
 				b.nodes[g.p.input] = 0
 				b.nodes[g.p.output] = 0
-				b.add(g)
+				b.addGene(g)
 			}
 			b.fitness = test.betaFitness
 

@@ -74,6 +74,9 @@ type (
 		// NormalizaDistanceThreshold
 		NormalizaDistanceThreshold int
 
+		// InitialBiasWeight
+		InitialBiasWeight float64
+
 		activate activationFunction
 	}
 )

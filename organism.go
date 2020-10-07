@@ -37,7 +37,7 @@ type (
 		// setup
 		strategy connectStrategy
 
-		// fitness is the organisms fitness
+		// fitness is the organism's fitness
 		fitness float64
 	}
 
@@ -197,7 +197,7 @@ func (o *organism) addBias(id nodeID) {
 	}
 
 	//g := newGene(p, defaultWeight, o.conf.activate)
-	g := newGene(p, 0.05*defaultWeight, o.conf.activate)
+	g := newGene(p, o.conf.InitialBiasWeight, o.conf.activate)
 	o.obias = append(o.obias, g)
 }
 

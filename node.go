@@ -29,6 +29,10 @@ var (
 	nodeIDGenerator = nextNodeID
 )
 
+func resetNodeID() {
+	atomic.StoreUint64(&nodeIDCount, 0)
+}
+
 func nextNodeID() nodeID {
 	return nodeID(atomic.AddUint64(&nodeIDCount, 1))
 }
