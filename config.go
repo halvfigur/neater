@@ -31,6 +31,9 @@ type (
 		// Recurrent controls whether recurrent connections are allowed
 		Recurrent bool
 
+		// RecurrentConnProb the probability that a new connection is recurrent
+		RecurrentConnProb float64
+
 		// MaxPopulationSize is the maximum number of different species
 		MaxPopulationSize int
 
@@ -65,11 +68,14 @@ type (
 		// ActivationFunction
 		ActivationFunction string
 
-		// NormalizeFitness
-		NormalizeFitness bool
+		// NormalizeDistance
+		NormalizeDistance bool
 
-		// FitnessNormalizationThreshold
-		FitnessNormalizationThreshold int
+		// NormalizaDistanceThreshold
+		NormalizaDistanceThreshold int
+
+		// InitialBiasWeight
+		InitialBiasWeight float64
 
 		activate activationFunction
 	}

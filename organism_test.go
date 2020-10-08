@@ -1,10 +1,25 @@
 package neater
 
 import (
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func createInputsOuputs(c *Configuration) ([]nodeID, []nodeID) {
+	resetNodeID()
+	inputs := make([]nodeID, c.Inputs)
+	for i := range inputs {
+		inputs[i] = nextNodeID()
+	}
+	outputs := make([]nodeID, c.Outputs)
+	for i := range outputs {
+		outputs[i] = nextNodeID()
+	}
+
+	return inputs, outputs
+}
 
 func TestEval(t *testing.T) {
 	tests := []struct {
@@ -84,7 +99,8 @@ func TestEval(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			o := newOrganism(test.conf,
+			inputs, outputs := createInputsOuputs(test.conf)
+			o := newOrganism(test.conf, inputs, outputs,
 				withConnectStrategy(connectFlow))
 
 			output := o.Eval(test.input)
@@ -182,7 +198,9 @@ func TestAddNotRecurrent(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			o := newOrganism(test.conf,
+			inputs, outputs := createInputsOuputs(test.conf)
+
+			o := newOrganism(test.conf, inputs, outputs,
 				withConnectStrategy(connectNone))
 
 			// Reset node ID counter
@@ -193,7 +211,7 @@ func TestAddNotRecurrent(t *testing.T) {
 				o.nodes[p.output] = 0
 
 				g := newGene(p, defaultWeight, unit)
-				o.add(g)
+				o.addGene(g)
 			}
 
 			output := o.Eval(test.input)
@@ -273,7 +291,8 @@ func TestPanicCases(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			o := newOrganism(test.conf,
+			inputs, outputs := createInputsOuputs(test.conf)
+			o := newOrganism(test.conf, inputs, outputs,
 				withConnectStrategy(connectNone))
 
 			// Reset node ID counter
@@ -285,7 +304,7 @@ func TestPanicCases(t *testing.T) {
 
 				//fmt.Printf("Add: %s\n", p)
 				g := newGene(p, defaultWeight, unit)
-				o.add(g)
+				o.addGene(g)
 				//fmt.Printf("---Iteration %d----\n%s\n\n", i+1, o)
 			}
 
@@ -295,18 +314,6 @@ func TestPanicCases(t *testing.T) {
 }
 
 func TestMutateAddNode(t *testing.T) {
-	var nCount uint64
-	nodeIDGenerator = func() nodeID {
-		nCount++
-		return nodeID(nCount)
-	}
-
-	var gCount uint64
-	innovIDGenerator = func() geneID {
-		gCount++
-		return geneID(gCount)
-	}
-
 	newGene := func(p nodePair, w float64, f activationFunction, innov geneID, disabled bool) *gene {
 		return &gene{
 			innov:    innov,
@@ -330,9 +337,10 @@ func TestMutateAddNode(t *testing.T) {
 		{
 			name: "One inuput one output no cache",
 			conf: &Configuration{
-				Inputs:   1,
-				Outputs:  1,
-				activate: sigmoid,
+				Inputs:            1,
+				Outputs:           1,
+				InitialBiasWeight: 0,
+				activate:          sigmoid,
 			},
 			randVal:   0,
 			nCount:    2,
@@ -343,8 +351,9 @@ func TestMutateAddNode(t *testing.T) {
 			},
 			expect: []*gene{
 				newGene(nodePair{1, 2}, 1, sigmoid, geneID(1), true),
-				newGene(nodePair{1, 3}, 1, sigmoid, geneID(2), false),
-				newGene(nodePair{3, 2}, 1, sigmoid, geneID(3), false),
+				// Skip geneID 2 which would be assigned when connecting bias
+				newGene(nodePair{1, 3}, 1, sigmoid, geneID(3), false),
+				newGene(nodePair{3, 2}, 1, sigmoid, geneID(4), false),
 			},
 		},
 		{
@@ -359,8 +368,9 @@ func TestMutateAddNode(t *testing.T) {
 			gCount:  1,
 			nodeCache: map[nodePair]genePair{
 				nodePair{1, 2}: genePair{
-					newGene(nodePair{1, 3}, 1, sigmoid, geneID(2), false),
-					newGene(nodePair{3, 2}, 1, sigmoid, geneID(3), false),
+					// Skip geneID 2 which would be assigned when connecting bias
+					newGene(nodePair{1, 3}, 1, sigmoid, geneID(3), false),
+					newGene(nodePair{3, 2}, 1, sigmoid, geneID(4), false),
 				},
 			},
 			genes: []*gene{
@@ -368,8 +378,9 @@ func TestMutateAddNode(t *testing.T) {
 			},
 			expect: []*gene{
 				newGene(nodePair{1, 2}, 1, sigmoid, geneID(1), true),
-				newGene(nodePair{1, 3}, 1, sigmoid, geneID(2), false),
-				newGene(nodePair{3, 2}, 1, sigmoid, geneID(3), false),
+				// Skip geneID 2 which would be assigned when connecting bias
+				newGene(nodePair{1, 3}, 1, sigmoid, geneID(3), false),
+				newGene(nodePair{3, 2}, 1, sigmoid, geneID(4), false),
 			},
 		},
 		{
@@ -394,25 +405,27 @@ func TestMutateAddNode(t *testing.T) {
 				newGene(nodePair{1, 4}, 1, sigmoid, geneID(2), false),
 				newGene(nodePair{2, 3}, 1, sigmoid, geneID(3), false),
 				newGene(nodePair{2, 4}, 1, sigmoid, geneID(4), false),
-				newGene(nodePair{1, 5}, 1, sigmoid, geneID(5), false),
-				newGene(nodePair{5, 3}, 1, sigmoid, geneID(6), false),
+				// Skip geneID 5 which would be assigned when connecting bias
+				newGene(nodePair{1, 5}, 1, sigmoid, geneID(6), false),
+				newGene(nodePair{5, 3}, 1, sigmoid, geneID(7), false),
 			},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+
 			// Reset node ID counter
-			nCount = test.nCount
+			atomic.StoreUint64(&nodeIDCount, test.nCount)
 			// Reset gene ID counter
-			gCount = test.gCount
+			atomic.StoreUint64(&innovCount, test.gCount)
 
 			o := newCleanOrganism(test.conf)
 
 			for _, g := range test.genes {
 				o.nodes[g.p.input] = 0
 				o.nodes[g.p.output] = 0
-				o.add(g)
+				o.addGene(g)
 			}
 
 			randIntn = func(int) int {
@@ -424,7 +437,7 @@ func TestMutateAddNode(t *testing.T) {
 			require.Equal(t, len(test.expect), len(o.oinnov))
 			for i, x := range test.expect {
 				y := o.oinnov[i]
-				require.True(t, x.equalTo(y))
+				require.True(t, x.equalTo(y), "Have: %#v Want: %#v", y, x)
 			}
 		})
 	}

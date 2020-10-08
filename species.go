@@ -3,10 +3,14 @@ package neater
 import (
 	"math"
 	"sort"
+	"sync/atomic"
 )
 
 type (
+	speciesID uint64
+
 	species struct {
+		id         speciesID
 		conf       *Configuration
 		rep        *organism
 		champ      *organism
@@ -15,16 +19,25 @@ type (
 	}
 )
 
+var (
+	speciesCount = uint64(0)
+)
+
+func nextSpeciesID() speciesID {
+	return speciesID(atomic.AddUint64(&speciesCount, 1))
+}
+
 func newCleanSpecies(c *Configuration) *species {
 	return &species{
+		id:         nextSpeciesID(),
 		conf:       c,
 		population: make([]*organism, c.InitialPopulationSize),
 	}
 }
 
-func newSpecies(c *Configuration) *species {
+func newSpecies(c *Configuration, inputs, outputs []nodeID) *species {
 	s := newCleanSpecies(c)
-	o := newOrganism(c)
+	o := newOrganism(c, inputs, outputs)
 	s.population[0] = o
 
 	for i := 1; i < len(s.population); i++ {
@@ -40,6 +53,46 @@ func (s *species) choseRepresentative() {
 	// Chose a species representative
 	r := randIntn(len(s.population))
 	s.rep = s.population[r]
+}
+
+func (s *species) train(tf TrainerFactory, cf FitnessCalculatorFactory) {
+	for _, o := range s.population {
+		t := tf.New()
+		c := cf.New()
+		for input, ok := t.Next(); ok; input, ok = t.Next() {
+			output := o.Eval(input)
+			c.AddResult(input, output)
+		}
+
+		o.fitness = c.CalculateFitness()
+	}
+
+	// Sort according to fitness
+	sort.Slice(s.population, func(i, j int) bool {
+		return s.population[i].fitness > s.population[j].fitness
+	})
+
+	// Drop the lowest performing organisms
+	threshold := min(s.conf.PopulationThreshold, len(s.population))
+	s.population = s.population[:threshold]
+
+	// Let the fittest organism represent the camp
+	s.champ = s.population[0]
+
+	// Normalize the species fitness
+	s.normalize()
+
+	// Chose a new species representative
+	s.choseRepresentative()
+}
+
+// normalize normalizes the fitness of the population
+func (s *species) normalize() {
+	l := float64(len(s.population))
+
+	for _, o := range s.population {
+		o.fitness /= l
+	}
 }
 
 func (s *species) mutate() []*organism {
@@ -59,16 +112,20 @@ func (s *species) mutate() []*organism {
 	rejectIdx := make([]int, 0, len(s.population))
 
 	// Iteratate over the population and mutate all organisms except the
-	// champion. Any organism that is no longer compatible with the species
+	// champion.
+	for _, o := range s.population {
+		// Spare the champ from mutation
+		if o != s.champ {
+			o.mutate(connCache, nodeCache)
+		}
+	}
+
+	// Choose a new representative
+	s.choseRepresentative()
+
+	// Any organism that is no longer compatible with the species
 	// representative is marked as rejected
 	for i, o := range s.population {
-		// Spare the champ from mutation
-		if o == s.champ {
-			continue
-		}
-
-		o.mutate(connCache, nodeCache)
-
 		// If o no longer belongs, mark it as rejected
 		if !s.belongs(o) {
 			rejectIdx = append(rejectIdx, i)
@@ -90,9 +147,11 @@ func (s *species) mutate() []*organism {
 
 	for i, o := range s.population {
 		if len(rejectIdx) > 0 && i == rejectIdx[0] {
+			// Add oranism to the list of rejects
 			rejects = append(rejects, o)
 			rejectIdx = rejectIdx[1:]
 		} else {
+			// Add organism to the remaining population
 			population = append(population, o)
 		}
 	}
@@ -102,47 +161,9 @@ func (s *species) mutate() []*organism {
 	return rejects
 }
 
-func (s *species) train(tf TrainerFactory, cf FitnessCalculatorFactory) {
-	s.champ = s.population[0]
-
-	for _, o := range s.population {
-		t := tf.New()
-		c := cf.New()
-		for input, ok := t.Next(); ok; input, ok = t.Next() {
-			output := o.Eval(input)
-			c.AddResult(input, output)
-		}
-
-		o.fitness = c.CalculateFitness()
-
-		if o.fitness > s.champ.fitness {
-			s.champ = o
-		}
-	}
-
-	// Adjust the population according to the SurvivalThreshold
-	sort.Slice(s.population, func(i, j int) bool {
-		return s.population[i].fitness > s.population[j].fitness
-	})
-
-	// Normalize the species fitness
-	s.normalize()
-
-	// Chose a new species representative
-	s.choseRepresentative()
-}
-
-// normalize normalizes the fitness of the population
-func (s *species) normalize() {
-	l := float64(len(s.population))
-
-	for _, o := range s.population {
-		o.fitness /= l
-	}
-}
-
 func (s *species) belongs(o *organism) bool {
-	return s.distance(s.rep, o) < s.conf.CompatibilityThreshold+(s.conf.CompatibilityModifier*float64(s.generation-1))
+	modifier := s.conf.CompatibilityModifier * float64(s.generation-1)
+	return s.distance(s.rep, o) < (s.conf.CompatibilityThreshold + modifier)
 }
 
 func (s *species) add(o *organism) {
@@ -183,10 +204,10 @@ func (s *species) distance(a, b *organism) float64 {
 	excessGenes += len(b.oinnov) - j - 1
 
 	n := float64(1)
-	if s.conf.NormalizeFitness {
+	if s.conf.NormalizeDistance {
 		largest := float64(max(len(a.oinnov), len(b.oinnov)))
-		if largest > float64(s.conf.FitnessNormalizationThreshold) {
-			// 'n' normalizes for genome size ('n' can be set to 1
+		if largest > float64(s.conf.NormalizaDistanceThreshold) {
+			// 'n' normalizes for genome size 'n' can be set to 1
 			// if both genomes are small, i.e., consist of fewer than 20 genes)
 			n = largest
 		}
@@ -212,8 +233,10 @@ func (s *species) mate() {
 		s.population = s.population[:min(topCutOffIndex, len(s.population))]
 	*/
 
-	cutOffIdx := min(len(s.population), int(math.Sqrt(float64(s.conf.PopulationThreshold+4))))
-	s.population = s.population[:cutOffIdx]
+	/*
+		cutOffIdx := min(len(s.population), int(math.Sqrt(float64(s.conf.PopulationThreshold+4))))
+		s.population = s.population[:cutOffIdx]
+	*/
 
 	n := len(s.population)
 	children := make([]*organism, 0, n*(n+1)/2)
@@ -228,10 +251,6 @@ func (s *species) mate() {
 	}
 
 	s.population = append(s.population, children...)
-
-	survivalIdx := min(s.conf.PopulationThreshold, len(s.population))
-
-	s.population = s.population[:survivalIdx]
 }
 
 func (s *species) recombinate(a, b *organism) *organism {
@@ -244,6 +263,10 @@ func (s *species) recombinate(a, b *organism) *organism {
 	o := newCleanOrganism(a.conf)
 	copy(o.inputs, a.inputs)
 	copy(o.outputs, a.outputs)
+	o.terminalNodes = make(map[nodeID]bool, len(a.terminalNodes))
+	for k, v := range a.terminalNodes {
+		o.terminalNodes[k] = v
+	}
 
 	i, j := 0, 0
 
@@ -266,27 +289,25 @@ func (s *species) recombinate(a, b *organism) *organism {
 			j = min(j+1, len(b.oinnov))
 		}
 
-		// Create the nodes in the target organism if the don't already exist.
-		// TODO: figure out if we need a function for creating nodes.
-		o.nodes[g.p.input] = 0
-		o.nodes[g.p.output] = 0
-		o.add(g)
+		o.addNode(g.p.input)
+		o.addNode(g.p.output)
+		o.addGene(g)
 	}
 
 	// Handle trailing genes (if any)
 	for ; i < len(a.oinnov); i++ {
 		g := a.oinnov[i]
-		o.nodes[g.p.input] = 0
-		o.nodes[g.p.output] = 0
-		o.add(g)
+		o.addNode(g.p.input)
+		o.addNode(g.p.output)
+		o.addGene(g)
 	}
 
 	// Handle trailing genes (if any)
 	for ; j < len(b.oinnov); j++ {
 		g := b.oinnov[j]
-		o.nodes[g.p.input] = 0
-		o.nodes[g.p.output] = 0
-		o.add(g)
+		o.addNode(g.p.input)
+		o.addNode(g.p.output)
+		o.addGene(g)
 	}
 
 	return o
